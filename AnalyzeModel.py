@@ -81,9 +81,6 @@ def aproximacion_sigmoidal(x_func, entropias_calc, verboso=True, montecarlo=6):
     
     if verboso:
         plt.figure()
-        #axes = plt.gca()
-        #axes.set_ylim([0,0.002])
-        #axes.set_xlim([0,2])
         plt.plot(x_func, entropias_calc)
         plt.plot(x_approx, montecarlo_sample,'ro')
         plt.plot(x_func, y_new)
@@ -91,6 +88,21 @@ def aproximacion_sigmoidal(x_func, entropias_calc, verboso=True, montecarlo=6):
         plt.plot(maximo, sigmoidal(maximo,*popt), 'yo')
     
     return popt, maximo, eleccion
+
+def puntuar(resultado, maximo, parametros):
+    '''
+    Puntua del 0 al 10 como de cerca esta un valor de una sigmoidal de su
+    punto de criticalidad.
+    
+    resultado -- valor a puntuar
+    maximo -- valor donde la derivada de la sigmoidal es maxima
+    parametros -- valores de ajuste de la sigmoidal (x0 y k)
+    '''
+    aux = derivada_sigmoidal(inversa_sigmoidal(resultado,*parametros),*parametros) / derivada_sigmoidal(maximo,*parametros) * 10
+    if aux > 10:
+        aux = 10 - aux%10
+    
+    return aux
 
 def derivada_maxima_aproximada(indices_x,indices_y):
     '''
@@ -237,7 +249,7 @@ def mandar_aviso_correo(gusano, destino = "javierfumanalidocin@gmail.com"):
     body = "Se ha terminado de entrenar el gusano " + gusano
     msg.attach(MIMEText(body, 'plain'))
     
-    server.sendmail("wormbraindummy@gmail.com", "javierfumanalidocin@gmail.com", msg.as_string())
+    server.sendmail("wormbraindummy@gmail.com", destino, msg.as_string())
     server.quit()
     
 
@@ -391,8 +403,9 @@ if __name__ == '__main__':
     
     funcion, maximo, muestras = aproximacion_sigmoidal(np.arange(0,1.5,0.1), entropias_calc[0:15], montecarlo=15)
     
+    derivada_sigmoidal(inversa_sigmoidal(resultado,*funcion),*funcion) / derivada_sigmoidal(maximo,*funcion) * 10
+    derivada_sigmoidal(maximo,*funcion)
     
-
-    
+    print("Nuestro gusano es de listo: " + "{:.2f}".format(puntuar(resultado, maximo, funcion)[0]) + "/10")
     
     

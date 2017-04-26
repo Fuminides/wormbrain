@@ -183,8 +183,13 @@ def entropia_conjunto(conjunto, k, umbral, normalizar=False):
     '''
     Devuelve la entropia de un conjunto, calculandola a partir de 
     la suma de entropia de las k combinaciones posibles de su dimensionalidad.
-    
+    Conjunto de entrada continuo.
     (Evita resultados estadisticamente no utiles)
+    
+    Conjunto -- conjunto del que calcular la entropia
+    k -- tamano de las combinaciones
+    umbral -- tipo/umbral a utilizar segun umbralizar()
+    normalizar -- ajusta el valor a la cantidad de combinaciones estudiadas o no
     '''
     cuenta_estados = {}
     size = conjunto.shape[1] #Numero de dimensiones
@@ -217,6 +222,10 @@ def entropia_muestra(conjunto, k, normalizar=True):
     la suma de entropia de las k combinaciones posibles de su dimensionalidad.
     La entrada debe estar ya discretizada.
     (Evita resultados estadisticamente no utiles)
+    
+     Conjunto -- conjunto del que calcular la entropia
+    k -- tamano de las combinaciones
+    normalizar -- ajusta el valor a la cantidad de combinaciones estudiadas o no
     '''
     cuenta_estados = {}
     size = conjunto.shape[1] #Numero de dimensiones
