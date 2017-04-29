@@ -128,7 +128,7 @@ class ising:
 		for ind,n in enumerate(ns):
 			s=bitfield(n,self.size)*2-1
 			eDiff = self.deltaE(s)
-			pflip=1.0/(1.0+np.exp(self.Beta*eDiff))
+			pflip=1.0/(1.0+np.exp((1/self.Beta)*eDiff))
 			self.m+= (s*(1-2*pflip))*P[ind]
 			d1, d2 = np.meshgrid(s*(1-2*pflip),s)
 			self.D+= d1*d2*P[ind]
@@ -216,7 +216,7 @@ class ising:
 			if (count>0) and (count%10==0):
 			   if (not hold):                   
 			       if (self.diverge(errores_divergencia, u)) :
-			           print("Reajustado el factor de aprendizaje por divergencia")
+			           print("Reajustado el factor de aprendizaje por divergencia (Esperamos a que deje de crecer)")
 			          
 			           hold = True
 			       if (self.converge_mal(errores, u)):

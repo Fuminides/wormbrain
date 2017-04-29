@@ -3,6 +3,7 @@
 @author: Javier Fumanal Idocin
 """
 import worm
+import AnalyzeModel
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,7 +11,6 @@ import matplotlib.pyplot as plt
 from kinetic_ising import bool2int, bitfield
 from itertools import combinations
 from sklearn.feature_selection import SelectKBest, f_classif
-from AnalyzeModel import umbralizar
 
 ######################################
 # FUNCIONES
@@ -95,7 +95,7 @@ def kMejores():
         neural_activation = SelectKBest(f_classif, k=limit_neuronas).fit_transform(neural_activation, behaviour)
                 
         for n in np.arange(0,2,0.1).tolist() + [2,3,4,5]: 
-            activaciones = umbralizar(neural_activation, n)
+            activaciones = AnalyzeModel.umbralizar(neural_activation, n)
             for estado in range(np.size(activaciones,1)):
                 convertido = bool2int(activaciones[estado,:])
                 if convertido in cuenta_estados:
@@ -127,7 +127,7 @@ def entropia1neurona(gusano):
         neural_activation = neural_activation_original[:,neurona]
     
         for n in np.arange(0,2,0.1).tolist() + [2,3,4,5]: 
-            activaciones = umbralizar(neural_activation, n)
+            activaciones = AnalyzeModel.umbralizar(neural_activation, n)
             for estado in range(np.size(activaciones)):
                 convertido = (activaciones[estado])+0
                 if convertido in cuenta_estados:
@@ -159,7 +159,7 @@ def entropiaKneuronas(gusano, k, normalizar=True):
         indice = 0
         neural_activation = neural_activation_original[:,list(neuronas)]
         for n in rango:
-            activaciones = umbralizar(neural_activation, n)
+            activaciones = AnalyzeModel.umbralizar(neural_activation, n)
             for estado in range(np.size(activaciones,0)):
                 convertido = bool2int(activaciones[estado,:])
                 if convertido in cuenta_estados:
@@ -199,7 +199,7 @@ def entropia_conjunto(conjunto, k, umbral, normalizar=False):
     print("Numero de permutaciones a calcular: ", len(permutaciones))
     for neuronas in permutaciones:
         neural_activation = conjunto[:,list(neuronas)]
-        activaciones = umbralizar(neural_activation, umbral)
+        activaciones = AnalyzeModel.umbralizar(neural_activation, umbral)
         for estado in range(np.size(activaciones,0)):
             convertido = bool2int(activaciones[estado,:])
             if convertido in cuenta_estados:

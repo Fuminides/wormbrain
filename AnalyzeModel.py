@@ -9,9 +9,9 @@ import pickle
 import time
 import worm
 import scipy
+import UmbralCalc
 
 import ising as isng
-import UmbralCalc as uc
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -23,6 +23,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from numba import jit
 from scipy.optimize import curve_fit
+from RedCalsificador import entrenar_clasificador
+
 
 
 sys.path.insert(0, '..')
@@ -279,6 +281,24 @@ def restore_ising(filename = 'filename_ising.obj'):
     fits = pickle.load(file_read)
     file_read.close()
     return isings, fits
+
+def crear_clasificador(gusano, filename = 'defecto', umbral = 5):
+    '''
+    Crea y guarda en un fichero un clasificador que detecta el comportamiento
+    del gusano a partir de su actividad neuronal
+    '''
+    (neural_activation,behavior)=worm.get_neural_activation(gusano)
+    behavior = np.maximum(behavior, np.zeros(behavior.size))
+    
+    porcentaje_train = 0.8
+    
+    barajeo = np.arange(behavior.size)
+    np.random.shuffle(np.arange(behavior.size))
+    muestras = umbralizar(neural_activation[barajeo],5)
+    muestras_l = behavior[barajeo]
+    corte = int(porcentaje_train*muestras.shape[0])
+    entrenar_clasificador(muestras[0:corte], muestras[corte+1:], muestras_l[0:corte], muestras_l[corte+1:], filename =gusano+'_gusano.json')
+
     
 @jit
 def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = False, gusanos = np.arange(0,5), filename = 'filename_ising.obj'):
@@ -362,7 +382,7 @@ def punto_criticalidad(ising, tipo_compresion, gusano, montecarlo=15):
                 (Usar el mismo que el usado para entrenar el ising)
     gusano -- gusano con el que comparar la entropia. (Usar el mismo que el entrenado con ising)
     '''
-    entropias_calc = uc.entropia_temperatura(ising, tipo_compresion)
+    entropias_calc = UmbralCalc.entropia_temperatura(ising, tipo_compresion)
     (neural_activation,behavior)=worm.get_neural_activation(0)
     neural_activation = compresion(neural_activation, behavior, tipo_compresion)
     
@@ -370,7 +390,7 @@ def punto_criticalidad(ising, tipo_compresion, gusano, montecarlo=15):
     plt.plot(np.arange(0,1.5,0.1), entropias_calc[0:15])
     plt.plot(mejor_punto, valor,'ro')
     
-    resultado = uc.entropia_muestra(umbralizar(neural_activation,5), 2)
+    resultado = UmbralCalc.entropia_muestra(umbralizar(neural_activation,5), 2)
     plt.axhline(y=resultado, color='r', linestyle='-')
     
     funcion, maximo, muestras = aproximacion_sigmoidal(np.arange(0,1.5,0.1), entropias_calc[0:15], montecarlo=15)
@@ -389,7 +409,7 @@ comprimir = 1
 if __name__ == '__main__':
     tipo_compresion = 0
     isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(1,2), umbral = 5, filename = 'gusano2.dat')
-    entropias_calc = uc.entropia_temperatura(isings[0])
+    entropias_calc = UmbralCalc.entropia_temperatura(isings[0])
     mejor_punto, valor = derivada_maxima_aproximada(np.arange(0,3,0.1), entropias_calc)
     (neural_activation,behavior)=worm.get_neural_activation(0)
     neural_activation = compresion(neural_activation, behavior, tipo_compresion)
@@ -398,7 +418,7 @@ if __name__ == '__main__':
     plt.plot(np.arange(0,1.5,0.1), entropias_calc[0:15])
     plt.plot(mejor_punto, valor,'ro')
     
-    resultado = uc.entropia_muestra(umbralizar(neural_activation,5), 2)
+    resultado = UmbralCalc.entropia_muestra(umbralizar(neural_activation,5), 2)
     plt.axhline(y=resultado, color='r', linestyle='-')
     
     funcion, maximo, muestras = aproximacion_sigmoidal(np.arange(0,1.5,0.1), entropias_calc[0:15], montecarlo=15)
