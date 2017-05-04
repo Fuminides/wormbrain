@@ -5,9 +5,8 @@
 #!/usr/bin/env python
 import sys
 import smtplib
-import pickle 
-import time
 import worm
+import time
 import scipy
 import UmbralCalc
 
@@ -23,7 +22,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from numba import jit
 from scipy.optimize import curve_fit
-from RedCalsificador import entrenar_clasificador
+from RedClasificador import entrenar_clasificador
+from IsingRecovery import save_isings, restore_ising
 
 
 
@@ -177,7 +177,7 @@ def compresion(neural_activation, behavior, comprimir):
     return neural_activation
 
 
-def umbralizar(neural_activation, umbral, verboso=False):
+def umbralizar(neural_activation, umbral, verboso=False, filtrado = True):
     '''
     Umbraliza las neuronas mediante diversas tecnicas.
     
@@ -188,8 +188,10 @@ def umbralizar(neural_activation, umbral, verboso=False):
         =3 -> Media de cada neurona es su propio umbral
         =4 -> Mediana de todas las neuronas
         =5 -> Mediana de cada neurona es su propio umbral
+        =6 -> Umbral igual a 0
     verboso -- si cierto, muestra un histograma con el numero de activaciones 
                 de cada neurona
+    filtrado -- si True, se pasa un filtro de paso alto
     '''
    
     if np.size(neural_activation.shape) > 1:
@@ -198,6 +200,11 @@ def umbralizar(neural_activation, umbral, verboso=False):
     else:
         size = 0
         T = len(neural_activation)
+    
+    if filtrado:
+        b, a = scipy.signal.butter(8, 0.01,btype='highpass')
+        neural_activation = scipy.signal.filtfilt(b, a, neural_activation, padlen=150)
+        
     if umbral==2:
         umbral=np.mean(neural_activation) #Cogemos las media de todas las neuronas como umbral
     elif umbral == 3:
@@ -223,7 +230,8 @@ def umbralizar(neural_activation, umbral, verboso=False):
             umbral = np.zeros((T,size))
         for n in range(T):
             umbral[n] = mediana_columnas
-            
+    elif umbral == 6:
+        umbral = 0
     if verboso:
         #Visualizar grafico de barras             
         act_hist = np.sum(np.greater_equal(neural_activation, umbral), axis = 0)
@@ -254,34 +262,6 @@ def mandar_aviso_correo(gusano, destino = "javierfumanalidocin@gmail.com"):
     server.sendmail("wormbraindummy@gmail.com", destino, msg.as_string())
     server.quit()
     
-
-def save_workspace(isings, fits, filename = 'filename_ising.obj'):
-    '''
-    Guarda los ising en un fichero junto con sus errores.
-    
-    isings - isings a guardar
-    fits - medidas de error
-    filename - nombre del fichero a utilizar. (Tiene valor por defecto)
-    '''
-    
-    file_write = open(filename, 'wb+')
-    pickle.dump(isings, file_write)
-    pickle.dump(fits, file_write)
-    file_write.close()
-
-def restore_ising(filename = 'filename_ising.obj'):
-    '''
-    Lee y devuelve los isings guardados junto con sus medidas de error
-    
-    filename -- Nombre del fichero donde estan contenidos. Por defecto es
-                es el mismo que para guardarlos.
-    '''
-    file_read = open('filename_ising.obj', 'rb')
-    isings = pickle.load(file_read)
-    fits = pickle.load(file_read)
-    file_read.close()
-    return isings, fits
-
 def crear_clasificador(gusano, filename = 'defecto', umbral = 5):
     '''
     Crea y guarda en un fichero un clasificador que detecta el comportamiento
@@ -339,15 +319,15 @@ def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = False
         s=bitfield(sample[0],size)*2-1
         m1+=s/float(T)
         for n in sample[1:]:
-        	sprev=s
-        	s=bitfield(n,size)*2-1
-        	m1+=s/float(T)
-        	for i in range(size):
-        		D1[:,i]+=s[i]*sprev/float(T-1)
-        		
+            sprev=s
+            s=bitfield(n,size)*2-1
+            m1+=s/float(T)
+            for i in range(size):
+                D1[:,i]+=s[i]*sprev/float(T-1)
+                
         for i in range(size):
-        	for j in range(size):
-        			D1[i,j]-=m1[i]*m1[j]
+            for j in range(size):
+                    D1[i,j]-=m1[i]*m1[j]
                         
         if (kinectic):
             y=ising(size)
@@ -366,7 +346,7 @@ def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = False
         print("Terminado un entrenamiento: " + time.ctime())
     
     print("Escribiendo en fichero... ")
-    save_workspace(isings, fits, filename)
+    save_isings(isings, fits, filename)
     
     print("Entrenamientos finalizados. Todo correcto")
     return isings, fits
@@ -408,7 +388,11 @@ comprimir = 1
 
 if __name__ == '__main__':
     tipo_compresion = 0
-    isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(1,2), umbral = 5, filename = 'gusano2.dat')
+    if sys.argv[0] == '-t':
+        isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(1,2), umbral = 5, filename = 'gusano2.dat')
+    else:
+        isings, fits = restore_ising()
+        
     entropias_calc = UmbralCalc.entropia_temperatura(isings[0])
     mejor_punto, valor = derivada_maxima_aproximada(np.arange(0,3,0.1), entropias_calc)
     (neural_activation,behavior)=worm.get_neural_activation(0)
@@ -419,7 +403,7 @@ if __name__ == '__main__':
     plt.plot(mejor_punto, valor,'ro')
     
     resultado = UmbralCalc.entropia_muestra(umbralizar(neural_activation,5), 2)
-    plt.axhline(y=resultado, color='r', linestyle='-')
+    
     
     funcion, maximo, muestras = aproximacion_sigmoidal(np.arange(0,1.5,0.1), entropias_calc[0:15], montecarlo=15)
     

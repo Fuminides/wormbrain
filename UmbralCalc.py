@@ -57,9 +57,7 @@ def calculate_entropy_ising(ising,tamano_muestra=1000):
     muestra_bool = np.zeros([len(muestra),ising.size])
     for i in np.arange(0,len(muestra)):
         muestra_bool[i] = bitfield(muestra[i], ising.size)
-        
-    #ocurrencias = cuenta_estado(muestra)
-    
+            
     return entropia_muestra(muestra_bool,2)
 
 
@@ -69,13 +67,13 @@ def entropia_temperatura(ising, temperaturas=np.arange(0,3,0.1), tamano_muestra=
     (No modifica la temperatura del sistema original)
     '''
     entropias = np.zeros(len(temperaturas))
-    temperatura_original = ising.Beta
+    temperatura_original = ising.T
     
     for n in np.arange(0,len(temperaturas)):
-        ising.Beta = temperaturas[n]
+        ising.T = temperaturas[n]
         entropias[n] = calculate_entropy_ising(ising)
         
-    ising.Beta = temperatura_original
+    ising.T = temperatura_original
     return entropias
 
 
@@ -223,7 +221,7 @@ def entropia_muestra(conjunto, k, normalizar=True):
     La entrada debe estar ya discretizada.
     (Evita resultados estadisticamente no utiles)
     
-     Conjunto -- conjunto del que calcular la entropia
+    Conjunto -- conjunto del que calcular la entropia
     k -- tamano de las combinaciones
     normalizar -- ajusta el valor a la cantidad de combinaciones estudiadas o no
     '''
