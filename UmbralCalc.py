@@ -17,10 +17,28 @@ from sklearn.feature_selection import SelectKBest, f_classif
 ######################################
 
 
-def cuenta_estado(activaciones):
+def cuenta_estado_array(activaciones):
     '''
     Cuenta el numero de veces que aparece cada estado en la muestra, y lo devuelve
-    en forma de diccionario
+    en forma de diccionario.
+    
+    activaciones -- array a analizar. Cada muestra debe ser un array de booleanos
+    '''
+    cuenta_estados = {}
+    for estado in activaciones:
+        convertido = bool2int(estado)
+        if convertido in cuenta_estados:
+           cuenta_estados[convertido] = cuenta_estados[convertido] + 1                   
+        else:
+           cuenta_estados[convertido] = 1
+    return cuenta_estados
+
+def cuenta_estado_int(activaciones):
+    '''
+    Cuenta el numero de veces que aparece cada estado en la muestra, y lo devuelve
+    en forma de diccionario.
+    
+    activaciones -- array a analizar. Cada muestra debe ser un entero
     '''
     cuenta_estados = {}
     for estado in activaciones:

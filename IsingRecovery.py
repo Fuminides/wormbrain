@@ -14,7 +14,7 @@ def save_isings(isings, fits, filename = 'filename_ising.obj'):
     filename - nombre del fichero a utilizar. (Tiene valor por defecto)
     '''
     
-    file_write = open(filename, 'wb+')
+    file_write = open('./Modelos/' + filename, 'wb+')
     pickle.dump(isings, file_write)
     pickle.dump(fits, file_write)
     file_write.close()
@@ -26,7 +26,7 @@ def restore_ising(filename = 'filename_ising.obj'):
     filename -- Nombre del fichero donde estan contenidos. Por defecto es
                 es el mismo que para guardarlos.
     '''
-    file_read = open('filename_ising.obj', 'rb')
+    file_read = open('./Modelos/' + filename, 'rb')
     isings = pickle.load(file_read)
     fits = pickle.load(file_read)
     file_read.close()

@@ -87,6 +87,7 @@ class ising:
         self.randomize_state()
         self.convergencias_malas = 0
         self.divergencias = 0
+        self.esperas = 100
 
     
     def randomize_state(self):
@@ -236,11 +237,14 @@ class ising:
             errores_divergencia[count%100-1] = fit
                
             if (count>0) and (count%10==0):
-               if (not hold):                   
-                   if (self.diverge(errores_divergencia, u)) :
-                       print("Reajustado el factor de aprendizaje por divergencia (Esperamos a que deje de crecer)")
-                      
-                       hold = True
+               if (not hold): 
+                   if (self.esperas == 100):
+                       if (self.diverge(errores_divergencia, u)) :
+                           print("Reajustado el factor de aprendizaje por divergencia (Esperamos a que deje de crecer)")   
+                           hold = True
+                           self.esperas = 0
+                   else:
+                       self.esperas = min(self.esperas + 1, 100)
                    if (self.converge_mal(errores, u)):
                         print("Rajustado el factor de aprendizaje por convergencia mala")
                         u = u / 10.0

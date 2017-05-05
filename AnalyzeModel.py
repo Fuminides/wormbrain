@@ -203,7 +203,7 @@ def umbralizar(neural_activation, umbral, verboso=False, filtrado = True):
     
     if filtrado:
         b, a = scipy.signal.butter(8, 0.01,btype='highpass')
-        neural_activation = scipy.signal.filtfilt(b, a, neural_activation, padlen=150)
+        neural_activation = scipy.signal.filtfilt(b, a, neural_activation)
         
     if umbral==2:
         umbral=np.mean(neural_activation) #Cogemos las media de todas las neuronas como umbral
@@ -281,7 +281,7 @@ def crear_clasificador(gusano, filename = 'defecto', umbral = 5):
 
     
 @jit
-def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = False, gusanos = np.arange(0,5), filename = 'filename_ising.obj'):
+def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = False, gusanos = np.arange(0,5), filename = 'filename_ising.obj', temperatura = 1):
     '''
     Entrena un modelo de ising para cada uno de los gusanos dados.
     Los escribe en un fichero, ademas de devolverlos como resultado.
@@ -331,10 +331,12 @@ def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = False
                         
         if (kinectic):
             y=ising(size)
+            y.T = temperatura
             y.independent_model(m1)
             fit=y.inverse(m1,D1,error,sample)
         else:
            y=isng.ising(size)
+           y.T = temperatura
            fit=y.inverse_exact(m1,D1,error)
             
         isings.append(y)
@@ -375,6 +377,27 @@ def punto_criticalidad(ising, tipo_compresion, gusano, montecarlo=15):
     
     funcion, maximo, muestras = aproximacion_sigmoidal(np.arange(0,1.5,0.1), entropias_calc[0:15], montecarlo=15)
     
+def distribucion_probabilidad(muestras, entero, verboso = False):
+    '''
+    Devuelve ordenadas las probabilidades de cada estado de la muestra de mayor a menor.
+    
+    muestras -- array de muestras
+    entero -- indica si las muestras van en forma de enteros o de array de bools
+    verboso -- ensenya una grafica con las probabilidades en estado logaritmico
+    '''
+    if (not entero):
+        ocurrencias = list(UmbralCalc.cuenta_estado_array(muestras).values())
+    else:
+        ocurrencias = list(UmbralCalc.cuenta_estado_int(muestras).values())
+    ocurrencias.sort(reverse=True)
+    ocurrencias = np.divide(ocurrencias,sum(ocurrencias))
+    
+    if verboso:
+        plt.figure()
+        plt.plot(np.log(np.arange(0,len(ocurrencias))),ocurrencias)
+        
+    return ocurrencias
+    
 #######################################################
 #Parametros del programa
 #######################################################
@@ -388,8 +411,11 @@ comprimir = 1
 
 if __name__ == '__main__':
     tipo_compresion = 0
-    if sys.argv[0] == '-t':
-        isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(1,2), umbral = 5, filename = 'gusano2.dat')
+    umbral_usado = 5
+    
+    if sys.argv[1] == '-t':
+        isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(0,1), umbral = umbral_usado, filename = 'gusano2.dat', temperatura = 1)
+        
     else:
         isings, fits = restore_ising()
         
@@ -402,7 +428,7 @@ if __name__ == '__main__':
     plt.plot(np.arange(0,1.5,0.1), entropias_calc[0:15])
     plt.plot(mejor_punto, valor,'ro')
     
-    resultado = UmbralCalc.entropia_muestra(umbralizar(neural_activation,5), 2)
+    resultado = UmbralCalc.entropia_muestra(umbralizar(neural_activation,umbral_usado), 2)
     
     
     funcion, maximo, muestras = aproximacion_sigmoidal(np.arange(0,1.5,0.1), entropias_calc[0:15], montecarlo=15)
