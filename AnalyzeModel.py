@@ -66,7 +66,8 @@ def aproximacion_sigmoidal(x_func, entropias_calc, verboso=True, montecarlo=6):
     eleccion = np.random.choice(int(len(entropias_calc)), montecarlo, replace=False)
     eleccion = np.sort(eleccion)
     x_approx = x_func[eleccion]
-    entropias_calc = entropias_calc/np.max(entropias_calc)
+    escala = np.max(entropias_calc)
+    entropias_calc = entropias_calc/escala
     montecarlo_sample = entropias_calc[eleccion]
     popt, pcov = curve_fit(sigmoidal, x_approx, montecarlo_sample)
     
@@ -83,13 +84,13 @@ def aproximacion_sigmoidal(x_func, entropias_calc, verboso=True, montecarlo=6):
     
     if verboso:
         plt.figure()
-        plt.plot(x_func, entropias_calc)
-        plt.plot(x_approx, montecarlo_sample,'ro')
-        plt.plot(x_func, y_new)
-        plt.plot(x_func, y_derivada/derivada_sigmoidal(maximo,*popt))
-        plt.plot(maximo, sigmoidal(maximo,*popt), 'yo')
+        plt.plot(x_func, entropias_calc*escala)
+        plt.plot(x_approx, montecarlo_sample*escala,'ro')
+        plt.plot(x_func, y_new*escala)
+        plt.plot(x_func, y_derivada/derivada_sigmoidal(maximo,*popt)*escala)
+        plt.plot(maximo, sigmoidal(maximo,*popt)*escala, 'yo')
     
-    return popt, maximo, eleccion
+    return popt, maximo, eleccion, escala
 
 def puntuar(resultado, maximo, parametros):
     '''
@@ -377,18 +378,34 @@ def punto_criticalidad(ising, tipo_compresion, gusano, montecarlo=15):
     
     funcion, maximo, muestras = aproximacion_sigmoidal(np.arange(0,1.5,0.1), entropias_calc[0:15], montecarlo=15)
     
-def distribucion_probabilidad(muestras, entero, verboso = False):
+def distribucion_probabilidad_estados(muestras, verboso = False):
     '''
     Devuelve ordenadas las probabilidades de cada estado de la muestra de mayor a menor.
     
     muestras -- array de muestras
     entero -- indica si las muestras van en forma de enteros o de array de bools
-    verboso -- ensenya una grafica con las probabilidades en estado logaritmico
+    verboso -- ensenya una grafica con las probabilidades (x logaritmo)
     '''
-    if (not entero):
-        ocurrencias = list(UmbralCalc.cuenta_estado_array(muestras).values())
-    else:
-        ocurrencias = list(UmbralCalc.cuenta_estado_int(muestras).values())
+    ocurrencias = list(UmbralCalc.cuenta_estado_int(muestras).values())
+        
+    ocurrencias.sort(reverse=True)
+    ocurrencias = np.divide(ocurrencias,sum(ocurrencias))
+    
+    if verboso:
+        plt.figure()
+        plt.plot(np.log(np.arange(0,len(ocurrencias))),ocurrencias)
+        
+    return ocurrencias
+
+def distribucion_probabilidad_transiciones(muestras, verboso = False):
+    '''
+    Devuelve ordenadas las probabilidades de cada estado de la muestra de mayor a menor.
+    
+    muestras -- array de muestras
+    entero -- indica si las muestras van en forma de enteros o de array de bools
+    verboso -- ensenya una grafica con las probabilidades (x logaritmico)
+    '''
+    ocurrencias = list(UmbralCalc.cuenta_transiciones(muestras).values())
     ocurrencias.sort(reverse=True)
     ocurrencias = np.divide(ocurrencias,sum(ocurrencias))
     
@@ -402,40 +419,39 @@ def distribucion_probabilidad(muestras, entero, verboso = False):
 #Parametros del programa
 #######################################################
 gusano=1
-error=1E-5
+error=1E-3
 variabilidad = 0.85
 
 umbral = 3
 comprimir = 1
 #######################################################
 
+#runfile("./AnalyzeModel.py", "None")
 if __name__ == '__main__':
     tipo_compresion = 0
-    umbral_usado = 5
+    umbral_usado = 6
     
     if sys.argv[1] == '-t':
-        isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(0,1), umbral = umbral_usado, filename = 'gusano2.dat', temperatura = 1)
+        isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(0,1), umbral = umbral_usado, filename = sys.argv[1], temperatura = 0.4)
         
     else:
         isings, fits = restore_ising()
-        
+        isings[0].T = 1
+
     entropias_calc = UmbralCalc.entropia_temperatura(isings[0])
     mejor_punto, valor = derivada_maxima_aproximada(np.arange(0,3,0.1), entropias_calc)
     (neural_activation,behavior)=worm.get_neural_activation(0)
     neural_activation = compresion(neural_activation, behavior, tipo_compresion)
+    umbralizadas = umbralizar(neural_activation,umbral_usado)
     
     plt.figure()
     plt.plot(np.arange(0,1.5,0.1), entropias_calc[0:15])
     plt.plot(mejor_punto, valor,'ro')
-    
-    resultado = UmbralCalc.entropia_muestra(umbralizar(neural_activation,umbral_usado), 2)
-    
-    
-    funcion, maximo, muestras = aproximacion_sigmoidal(np.arange(0,1.5,0.1), entropias_calc[0:15], montecarlo=15)
-    
-    derivada_sigmoidal(inversa_sigmoidal(resultado,*funcion),*funcion) / derivada_sigmoidal(maximo,*funcion) * 10
-    derivada_sigmoidal(maximo,*funcion)
-    
-    print("Nuestro gusano es de listo: " + "{:.2f}".format(puntuar(resultado, maximo, funcion)[0]) + "/10")
+            
+    funcion, maximo, muestras, escala = aproximacion_sigmoidal(np.arange(0,1.5,0.1), entropias_calc[0:15], montecarlo=15)
+    y = UmbralCalc.entropia(UmbralCalc.cuenta_transiciones(umbralizadas))/escala
+    x = inversa_sigmoidal(y,*funcion)
+    plt.plot(x,y*escala,'bo')
+    print("Nuestro gusano es de listo: " + "{:.2f}".format(puntuar(y, maximo, funcion)[0]) + "/10")
     
     

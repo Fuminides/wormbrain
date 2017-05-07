@@ -8,7 +8,7 @@ import AnalyzeModel
 import numpy as np
 import matplotlib.pyplot as plt
 
-from kinetic_ising import bool2int, bitfield
+from kinetic_ising import bool2int
 from itertools import combinations
 from sklearn.feature_selection import SelectKBest, f_classif
 
@@ -17,23 +17,7 @@ from sklearn.feature_selection import SelectKBest, f_classif
 ######################################
 
 
-def cuenta_estado_array(activaciones):
-    '''
-    Cuenta el numero de veces que aparece cada estado en la muestra, y lo devuelve
-    en forma de diccionario.
-    
-    activaciones -- array a analizar. Cada muestra debe ser un array de booleanos
-    '''
-    cuenta_estados = {}
-    for estado in activaciones:
-        convertido = bool2int(estado)
-        if convertido in cuenta_estados:
-           cuenta_estados[convertido] = cuenta_estados[convertido] + 1                   
-        else:
-           cuenta_estados[convertido] = 1
-    return cuenta_estados
-
-def cuenta_estado_int(activaciones):
+def cuenta_estado(activaciones):
     '''
     Cuenta el numero de veces que aparece cada estado en la muestra, y lo devuelve
     en forma de diccionario.
@@ -42,13 +26,33 @@ def cuenta_estado_int(activaciones):
     '''
     cuenta_estados = {}
     for estado in activaciones:
-        convertido = estado
+        convertido = str(estado)
         if convertido in cuenta_estados:
            cuenta_estados[convertido] = cuenta_estados[convertido] + 1                   
         else:
            cuenta_estados[convertido] = 1
     return cuenta_estados
 
+def cuenta_transiciones(activaciones):
+    '''
+    Cuenta el numero de veces que aparece cada estado en la muestra, y lo devuelve
+    en forma de diccionario.
+    
+    activaciones -- array a analizar. Cada muestra debe ser un entero
+    '''
+    cuenta_estados = {}
+    anterior = None
+    for estado in activaciones:
+        if anterior != None:
+            convertido = str(estado) + str(anterior)
+            if convertido in cuenta_estados:
+               cuenta_estados[convertido] = cuenta_estados[convertido] + 1                   
+            else:
+               cuenta_estados[convertido] = 1
+               
+        anterior = estado
+        
+    return cuenta_estados
 
 def entropia(estados):
     '''
@@ -67,16 +71,17 @@ def entropia(estados):
         
     return -suma
 
-def calculate_entropy_ising(ising,tamano_muestra=1000):
+def calculate_entropy_ising(ising,tamano_muestra=1000, transiciones = False):
     '''
     Genera una muestra aleatoria de un ising y calcula la entropia de la misma
     '''
     muestra = ising.generate_sample(tamano_muestra)
-    muestra_bool = np.zeros([len(muestra),ising.size])
-    for i in np.arange(0,len(muestra)):
-        muestra_bool[i] = bitfield(muestra[i], ising.size)
-            
-    return entropia_muestra(muestra_bool,2)
+
+    if (transiciones == False):
+        return entropia(cuenta_estado(muestra))
+    else:
+        return entropia(cuenta_transiciones(muestra))
+        
 
 
 def entropia_temperatura(ising, temperaturas=np.arange(0,3,0.1), tamano_muestra=1000):
@@ -89,11 +94,64 @@ def entropia_temperatura(ising, temperaturas=np.arange(0,3,0.1), tamano_muestra=
     
     for n in np.arange(0,len(temperaturas)):
         ising.T = temperaturas[n]
-        entropias[n] = calculate_entropy_ising(ising)
+        entropias[n] = calculate_entropy_ising(ising, transiciones=False)
         
     ising.T = temperatura_original
     return entropias
 
+def entropia_muestra(conjunto, transiciones, normalizar=False):
+    '''
+    Devuelve la entropia de un conjunto, calculandola a partir de 
+    
+    Conjunto -- conjunto del que calcular la entropia
+    transiciones -- indica si se quiere medir la entropia de los cambios de estado
+    normalizar -- ajusta el valor entre 0 y 1 o no
+    '''
+    if (not transiciones):
+        result = entropia(cuenta_estado(conjunto))
+    else:
+        result = entropia(cuenta_transiciones(conjunto))
+        
+    if normalizar:
+        result /= max(result)
+    
+    return result
+
+############################################
+
+def entropiaKneuronas(gusano, k, normalizar=False):
+    '''
+    Devuelve la media de entropia de cada k combinacion de neuronas del gusano.
+    '''
+    cuenta_estados = {}
+    (neural_activation_original,behaviour)=worm.get_neural_activation(gusano)
+    size = neural_activation_original.shape[1] #Numero de dimensiones
+    rango = np.arange(0.1,0.3,0.01).tolist()
+    registro_entropias = np.zeros(np.size(rango))
+    permutaciones = list(combinations(range(size), k))
+    neural_activation = AnalyzeModel.umbralizar(neural_activation_original, 0)
+    print("Numero de permutaciones a calcular: ", len(permutaciones))
+    for neuronas in permutaciones:
+        indice = 0
+        activaciones = neural_activation[:,list(neuronas)]
+        for estado in range(np.size(activaciones,0)):
+            convertido = bool2int(activaciones[estado,:])
+            if convertido in cuenta_estados:
+                cuenta_estados[convertido] = cuenta_estados[convertido] + 1                   
+            else:
+                cuenta_estados[convertido] = 1
+       
+        registro_entropias[indice] = entropia(cuenta_estados)
+        indice = indice + 1
+        cuenta_estados.clear()
+    
+   
+    plt.plot(rango,registro_entropias)
+    print()
+    if normalizar:
+        return np.divide(registro_entropias, len(permutaciones))
+    else:
+        return registro_entropias
 
 def kMejores():
     '''
@@ -130,144 +188,8 @@ def kMejores():
         plt.plot(np.divide(range(np.size(registro_entropias)),10.0),registro_entropias)
         print()
         
-def entropia1neurona(gusano):
-    '''
-    Devuelve la media de entropia de cada neurona para cada umbral por separado.
-    '''
-    cuenta_estados = {}
-    (neural_activation_original,behaviour)=worm.get_neural_activation(gusano)
-    size = neural_activation_original.shape[1] #Numero de dimensiones
-    registro_entropias = np.zeros(np.arange(0,2,0.1).shape[0]+4)
     
-    for neurona in range(size):
-        neural_activation = neural_activation_original[:,neurona]
-    
-        for n in np.arange(0,2,0.1).tolist() + [2,3,4,5]: 
-            activaciones = AnalyzeModel.umbralizar(neural_activation, n)
-            for estado in range(np.size(activaciones)):
-                convertido = (activaciones[estado])+0
-                if convertido in cuenta_estados:
-                    cuenta_estados[convertido] = cuenta_estados[convertido] + 1                   
-                else:
-                    cuenta_estados[convertido] = 1
-            if (n*10 < len(registro_entropias)):
-                registro_entropias[int(n*10)] += entropia(cuenta_estados)
-            else:
-                registro_entropias[int(((n-2)*0.1+2)*10)] += entropia(cuenta_estados)
-                
-            cuenta_estados.clear()
-            
-    return np.divide(registro_entropias, size)
-
-def entropiaKneuronas(gusano, k, normalizar=True):
-    '''
-    Devuelve la media de entropia de cada k combinacion de neuronas del gusano.
-    '''
-    cuenta_estados = {}
-    (neural_activation_original,behaviour)=worm.get_neural_activation(gusano)
-    size = neural_activation_original.shape[1] #Numero de dimensiones
-    rango = np.arange(0.1,0.3,0.01).tolist()
-    registro_entropias = np.zeros(np.size(rango))
-    permutaciones = list(combinations(range(size), k))
-    
-    print("Numero de permutaciones a calcular: ", len(permutaciones))
-    for neuronas in permutaciones:
-        indice = 0
-        neural_activation = neural_activation_original[:,list(neuronas)]
-        for n in rango:
-            activaciones = AnalyzeModel.umbralizar(neural_activation, n)
-            for estado in range(np.size(activaciones,0)):
-                convertido = bool2int(activaciones[estado,:])
-                if convertido in cuenta_estados:
-                    cuenta_estados[convertido] = cuenta_estados[convertido] + 1                   
-                else:
-                    cuenta_estados[convertido] = 1
-           
-            registro_entropias[indice] = entropia(cuenta_estados)
-            indice = indice + 1
-            cuenta_estados.clear()
-    
-   
-    plt.plot(rango,registro_entropias)
-    print()
-    if normalizar:
-        return np.divide(registro_entropias, len(permutaciones))
-    else:
-        return registro_entropias
-
-def entropia_conjunto(conjunto, k, umbral, normalizar=False):
-    '''
-    Devuelve la entropia de un conjunto, calculandola a partir de 
-    la suma de entropia de las k combinaciones posibles de su dimensionalidad.
-    Conjunto de entrada continuo.
-    (Evita resultados estadisticamente no utiles)
-    
-    Conjunto -- conjunto del que calcular la entropia
-    k -- tamano de las combinaciones
-    umbral -- tipo/umbral a utilizar segun umbralizar()
-    normalizar -- ajusta el valor a la cantidad de combinaciones estudiadas o no
-    '''
-    cuenta_estados = {}
-    size = conjunto.shape[1] #Numero de dimensiones
-    registro_entropias = 0
-    permutaciones = list(combinations(range(size), k))
-    
-    print("Numero de permutaciones a calcular: ", len(permutaciones))
-    for neuronas in permutaciones:
-        neural_activation = conjunto[:,list(neuronas)]
-        activaciones = AnalyzeModel.umbralizar(neural_activation, umbral)
-        for estado in range(np.size(activaciones,0)):
-            convertido = bool2int(activaciones[estado,:])
-            if convertido in cuenta_estados:
-                cuenta_estados[convertido] = cuenta_estados[convertido] + 1                   
-            else:
-                cuenta_estados[convertido] = 1
-       
-        registro_entropias += entropia(cuenta_estados)
-        cuenta_estados.clear()
-    
-  
-    if normalizar:
-        return registro_entropias/ len(permutaciones)
-    else:
-        return registro_entropias
-
-def entropia_muestra(conjunto, k, normalizar=True):
-    '''
-    Devuelve la entropia de un conjunto, calculandola a partir de 
-    la suma de entropia de las k combinaciones posibles de su dimensionalidad.
-    La entrada debe estar ya discretizada.
-    (Evita resultados estadisticamente no utiles)
-    
-    Conjunto -- conjunto del que calcular la entropia
-    k -- tamano de las combinaciones
-    normalizar -- ajusta el valor a la cantidad de combinaciones estudiadas o no
-    '''
-    cuenta_estados = {}
-    size = conjunto.shape[1] #Numero de dimensiones
-    permutaciones = list(combinations(range(size), k))
-    resultado = 0
-    num_estados = 0
-    for neuronas in permutaciones:
-        neural_activation = conjunto[:,list(neuronas)]
-        for estado in range(np.size(neural_activation,0)):
-            num_estados += 1
-            convertido = bool2int(neural_activation[estado,:])
-            if convertido in cuenta_estados:
-                cuenta_estados[convertido] = cuenta_estados[convertido] + 1                   
-            else:
-                cuenta_estados[convertido] = 1
-       
-        resultado += entropia(cuenta_estados)
-        cuenta_estados.clear()
-    
-  
-    if normalizar:
-        return resultado/ num_estados
-    else:
-        return resultado
-
-############################################
+########################################################
 
 if __name__ == '__main__':
     pr = entropiaKneuronas(0, 2)

@@ -19,7 +19,7 @@ def save_isings(isings, fits, filename = 'filename_ising.obj'):
     pickle.dump(fits, file_write)
     file_write.close()
 
-def restore_ising(filename = 'filename_ising.obj'):
+def restore_ising(filename = 'filename_ising_no_filtro.obj'):
     '''
     Lee y devuelve los isings guardados junto con sus medidas de error
     
@@ -69,7 +69,7 @@ def save_results(variable, nombre):
     variable -- variable a guardar
     nombre -- nombre de la variable (asi se habra guardado el fichero)
     '''
-    file_write = open("./Resultados/" + time.strftime("%c") + "_" + str(nombre), 'wb+')
+    file_write = open("./Resultados/" + str(nombre), 'wb+')
    
     pickle.dump(variable, file_write)
         
