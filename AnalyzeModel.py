@@ -22,7 +22,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from numba import jit
 from scipy.optimize import curve_fit
-from RedClasificador import entrenar_clasificador
+from RedClasificador import entrenar_clasificador, process_labels
 from IsingRecovery import save_isings, restore_ising
 
 
@@ -263,7 +263,7 @@ def mandar_aviso_correo(gusano, destino = "javierfumanalidocin@gmail.com"):
     server.sendmail("wormbraindummy@gmail.com", destino, msg.as_string())
     server.quit()
     
-def crear_clasificador(gusano, filename = 'defecto', umbral = 5):
+def crear_clasificador(gusano, filename = 'defecto', umbral = 4):
     '''
     Crea y guarda en un fichero un clasificador que detecta el comportamiento
     del gusano a partir de su actividad neuronal
@@ -274,11 +274,11 @@ def crear_clasificador(gusano, filename = 'defecto', umbral = 5):
     porcentaje_train = 0.8
     
     barajeo = np.arange(behavior.size)
-    np.random.shuffle(np.arange(behavior.size))
+    np.random.shuffle(barajeo)
     muestras = umbralizar(neural_activation[barajeo],5)
     muestras_l = behavior[barajeo]
     corte = int(porcentaje_train*muestras.shape[0])
-    entrenar_clasificador(muestras[0:corte], muestras[corte+1:], muestras_l[0:corte], muestras_l[corte+1:], filename =gusano+'_gusano.json')
+    entrenar_clasificador(muestras[0:corte,:], muestras[corte+1:,:],process_labels(muestras_l[0:corte]),  process_labels(muestras_l[corte+1:]), filename =str(gusano)+'_gusano.json')
 
     
 @jit
@@ -386,7 +386,7 @@ def distribucion_probabilidad_estados(muestras, verboso = False):
     entero -- indica si las muestras van en forma de enteros o de array de bools
     verboso -- ensenya una grafica con las probabilidades (x logaritmo)
     '''
-    ocurrencias = list(UmbralCalc.cuenta_estado_int(muestras).values())
+    ocurrencias = list(UmbralCalc.cuenta_estado(muestras).values())
         
     ocurrencias.sort(reverse=True)
     ocurrencias = np.divide(ocurrencias,sum(ocurrencias))

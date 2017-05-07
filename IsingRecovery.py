@@ -42,7 +42,7 @@ def generate_muestra(ising, filtro, size = 10000):
     '''
     muestra = ising.generate_sample(size)
     
-    file_write = open("./Muestras/muestra_tamano_" + size + "_neuronas_" + ising.size + "_temperatura_" + ising.T + "_filtered_" + filtro, 'wb+')
+    file_write = open("./Muestras/muestra_tamano_" + str(size) + "_neuronas_" + str(ising.size) + "_temperatura_" + str(ising.T) + "_filtered_" + str(filtro), 'wb+')
     pickle.dump(muestra, file_write)
     file_write.close()
     

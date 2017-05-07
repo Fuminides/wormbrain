@@ -2,7 +2,7 @@
 """
 @author: Javier Fumanal Idocin
 """
-
+import numpy as np
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.models import model_from_json
@@ -33,6 +33,11 @@ def aciertos(real, yhat):
 
 	return resultado
 
+def busca1(vector):
+    for i in np.arange(0,vector.size):
+        if vector[i] == 1:
+            return i
+        
 def indices_maximos_vector(matriz):
 	'''
 	Devuelve el indice con valor maximo de un vector
@@ -44,6 +49,16 @@ def indices_maximos_vector(matriz):
 
 	return resultados
 
+def process_labels(labels_originales):
+    '''
+    
+    '''
+    tam = labels_originales.size
+    nuevas_labels = np.zeros([tam,numero_behaviours])
+    for i in np.arange(0,tam):
+        nuevas_labels[i,labels_originales[int(i)]] = 1
+        
+    return nuevas_labels
 
 def entrenar_clasificador(train, test, l_train, l_test, filename = 'y_model_architecture.json'):
     '''
@@ -64,29 +79,31 @@ def entrenar_clasificador(train, test, l_train, l_test, filename = 'y_model_arch
     se debe de adecuar al data set a entrenar)
     filename - nombre del fichero JSON donde guardar la red neuronal.
     '''
-    dimensiones = train.size[1]
+    dimensiones = train.shape[1]
     mejores_tamanos = [0] * (max_layers + 1)
     mejor_error_global = 1
+    test_labels = indices_maximos_vector(l_test)
     
-    for layer in [x+1 for x in range(max_layers)]:
+    for layer in np.arange(0,max_layers):
+        print("Entrenando con " + str(layer+1) + " layers")
         mejor_error_layer = 1
         
         for neuronas in [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]:
             model = Sequential()
             model.add(Dense(output_dim = dimensiones, input_dim = dimensiones, activation='linear'))
             
-            for layers_pasados in range(layer):
+            for layers_pasados in np.arange(0,layer):
                 if layers_pasados != 0:
                     model.add(Dense(output_dim = mejores_tamanos[layers_pasados], activation='tanh'))
-            
-            #model.add(Dense(output_dim = neuronas, activation = 'tanh'))
+#            
+           # model.add(Dense(output_dim = dimensiones, activation = 'tanh'))
             model.add(Dense(output_dim = numero_behaviours, activation = 'softplus'))
             model.compile(optimizer = 'adadelta', loss = 'categorical_crossentropy', metrics = ['accuracy'])
             model.fit(train, l_train, nb_epoch=5, verbose = 0, shuffle = True)
 
             yhat = model.predict(test)
             yhat = indices_maximos_vector(l_test)
-            exitos = aciertos(l_test, yhat)
+            exitos = aciertos(test_labels, yhat)
             error = 1 - (sum(exitos)/len(yhat))
 
             print ("Layers ocultos: " + str(layer) + " Neuronas: " + str(neuronas) + " Error: " + str(error * 100) + "%")
@@ -101,8 +118,8 @@ def entrenar_clasificador(train, test, l_train, l_test, filename = 'y_model_arch
 
             #Guardar la red
             json_string = model.to_json()
-            open('/NoTocar/'+ filename, 'w').write(json_string)
-            model.save_weights('/NoTocar/my_model_weights.h5', overwrite=True)
+            open('./NoTocar/'+ filename, 'w').write(json_string)
+            model.save_weights('./NoTocar/my_model_weights.h5', overwrite=True)
     
 def cargar_clasificador():
     '''
