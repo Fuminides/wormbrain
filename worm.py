@@ -4,7 +4,7 @@ import csv
 from scipy.optimize import leastsq
 import matplotlib.pyplot as plt
 
-def get_neural_activation(sheet_index=0):
+def get_neural_activation(sheet_index=0, filtro = True):
 
 	xl_workbook = xlrd.open_workbook('files/pnas.1507110112.sd01.xls')
 #	print xl_workbook.sheet_names()
@@ -26,6 +26,9 @@ def get_neural_activation(sheet_index=0):
 
 	neural_activation=X[:,4:]
 	behavior=X[:,3]
+	if  filtro:
+		neural_activation = np.load("./files/worm"+str(sheet_index)+"-filtered.npy")
+    
 	return neural_activation,behavior
 
 def get_center_position(sheet_index=0):

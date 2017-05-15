@@ -2,3 +2,4 @@ kinetic_ising.py
 *.pyc
 *.xls
 files/pnas.1507110112.sd01.xls
+ITtools.py

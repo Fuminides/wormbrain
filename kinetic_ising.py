@@ -207,7 +207,7 @@ class ising:
        return False
    
     @jit
-    def inverse(self,m1,D1, error,sample, maximum_error = True, u = 0.1, verboso = True, max_iteration = mt.inf):
+    def inverse(self,m1,D1, error,sample, maximum_error = False, u = 0.1, verboso = True, max_iteration = mt.inf):
         '''
         Entrena el sistema de Ising utilizando descenso de gradiente.
         '''

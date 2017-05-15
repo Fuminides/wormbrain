@@ -139,6 +139,7 @@ def compresion(neural_activation, behavior, comprimir):
          0->Sin compresion
          1->Usando PCA 
          2->Coge las mas correladas con las labels
+         >=3 -> Coge ese mismo numero de neuronas aleatorias
     '''
     if comprimir == 1:
         pca = PCA()
@@ -174,11 +175,17 @@ def compresion(neural_activation, behavior, comprimir):
         clf.fit(neural_activation, behavior)
         model = SelectFromModel(clf, prefit=True)
         neural_activation = model.transform(neural_activation)
-
+        
+    elif comprimir >= 3:
+        ##Eleccion aleatoria de neuronas
+        barajeo = np.arange(0,neural_activation.shape[1])
+        np.random.shuffle(barajeo)
+        neural_activation = neural_activation[:,barajeo[0:comprimir]]
+        print(neural_activation.shape)
     return neural_activation
 
 
-def umbralizar(neural_activation, umbral, verboso=False, filtrado = True):
+def umbralizar(neural_activation, umbral, verboso=False):
     '''
     Umbraliza las neuronas mediante diversas tecnicas.
     
@@ -201,10 +208,6 @@ def umbralizar(neural_activation, umbral, verboso=False, filtrado = True):
     else:
         size = 0
         T = len(neural_activation)
-    
-    if filtrado:
-        b, a = scipy.signal.butter(8, 0.01,btype='highpass')
-        neural_activation = scipy.signal.filtfilt(b, a, neural_activation)
         
     if umbral==2:
         umbral=np.mean(neural_activation) #Cogemos las media de todas las neuronas como umbral
@@ -414,25 +417,102 @@ def distribucion_probabilidad_transiciones(muestras, verboso = False):
         plt.plot(np.log(np.arange(0,len(ocurrencias))),ocurrencias)
         
     return ocurrencias
+
+def buscar_estable(ising, iteraciones = 5000, max_intentos=np.inf):
+    '''
+    Termina cuando el sistema ising ha llegado a un punto estable.
+    Devuelve de forma aproximada el numero de iteraciones que le ha costado
+    llegar.
+    
+    ising -- sistema ising a medir
+    iteraciones -- x numero de muestras en cada remesa de muestras
+    max_intentos -- numero de remesas maximo a generar
+    '''
+    estable = True
+    intentos = 0
+    samples = ising.generate_sample(iteraciones, None);
+    valor_final = samples[0]
+    
+    for i in np.arange(0,iteraciones):
+        if (valor_final != samples[i]):
+            estable = False
+            
+    while(not estable and (max_intentos >= intentos)):
+        estable = True
+        intentos += 1
+        samples = ising.generate_sample(iteraciones, ising.s);
+        valor_final = samples[0]
+    
+        for i in np.arange(0,iteraciones):
+            if (valor_final != samples[i]):
+                estable = False
+    
+    return intentos*iteraciones, estable
+
+def calculo_magnetismo(ising, precision = 50, verboso = True):
+    '''
+    Calcula el numero de intentos necesarios para llevar a un sistema ising a la
+    estabilidad para diferentes temperaturas. Tambien devuelve la facilidad relativa para hacerlo 
+    en funcion de esta ultima.
+    
+    ising -- sistema a estudiar
+    precision -- la resolucion con la que calcular el numero de intentos a utilizar.
+    Ademas, es el numero de muestras que se estudian para medir la estabilidad del sistema.
+    (Un valor menor de 50 esta muy desaconsejado, ya que lleva a falsos positivos)
+    verboso -- muestra una grafica con los resultados
+    '''
+    rango_estudio = np.arange(0,1.5,0.1)
+    T_original =  ising.T
+    intentos = np.zeros(15)
+    
+    for i in np.arange(0,rango_estudio.size):
+        print("Con T igual a: " + str(rango_estudio[i]))
+        ising.T = rango_estudio[i]
+        pruebas = np.zeros(15)
+        for z in np.arange(pruebas.size):
+            num, exito = buscar_estable(ising, precision, 500)
+            if exito:
+                pruebas[z] = num
+                
+        intentos[i] = np.median(pruebas)
+        print(intentos[i])
+        if intentos[i] == 0:
+            break
+    
+    for i in intentos.size:
+        if intentos[i] ==0:
+            intentos[i] = np.max(intentos)
+       
+    if verboso:
+        plt.figure()
+        facilidades =  (np.max(intentos) - intentos) / np.max(intentos)
+        plt.plot(rango_estudio, facilidades)
+        plt.ylabel('Facilidad de llevar a punto de estabilidad')
+        plt.xlabel('Temperatura')
+        
+        plt.figure()
+        plt.plot(rango_estudio, intentos)
+        plt.ylabel('Numero de intentos para estabilizar')
+        plt.xlabel('Temperatura')
+        
+    ising.T = T_original
+    return intentos, facilidades
     
 #######################################################
 #Parametros del programa
 #######################################################
-gusano=1
+gusano=0
 error=1E-3
 variabilidad = 0.85
-
-umbral = 3
-comprimir = 1
 #######################################################
 
 #runfile("./AnalyzeModel.py", "None")
 if __name__ == '__main__':
-    tipo_compresion = 0
-    umbral_usado = 6
+    tipo_compresion = 4
+    umbral_usado = 4
     
     if sys.argv[1] == '-t':
-        isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(0,1), umbral = umbral_usado, filename = sys.argv[1], temperatura = 0.4)
+        isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(0,1), umbral = umbral_usado, filename = sys.argv[1], temperatura = 1)
         
     else:
         isings, fits = restore_ising()

@@ -33,11 +33,6 @@ def aciertos(real, yhat):
 
 	return resultado
 
-def busca1(vector):
-    for i in np.arange(0,vector.size):
-        if vector[i] == 1:
-            return i
-        
 def indices_maximos_vector(matriz):
 	'''
 	Devuelve el indice con valor maximo de un vector
@@ -51,7 +46,7 @@ def indices_maximos_vector(matriz):
 
 def process_labels(labels_originales):
     '''
-    
+    Convierte las labels numericas en vectores para ser utilizados por el calsificador.
     '''
     tam = labels_originales.size
     nuevas_labels = np.zeros([tam,numero_behaviours])
