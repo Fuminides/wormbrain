@@ -13,6 +13,7 @@ import UmbralCalc
 import ising as isng
 import matplotlib.pyplot as plt
 import numpy as np
+import ITtools as IT
 
 from kinetic_ising import ising, bitfield, bool2int
 from sklearn.decomposition import PCA
@@ -24,7 +25,7 @@ from numba import jit
 from scipy.optimize import curve_fit
 from RedClasificador import entrenar_clasificador, process_labels
 from IsingRecovery import save_isings, restore_ising
-
+from itertools import combinations
 
 
 sys.path.insert(0, '..')
@@ -497,6 +498,42 @@ def calculo_magnetismo(ising, precision = 50, verboso = True):
         
     ising.T = T_original
     return intentos, facilidades
+
+def transmision_entropia(muestra, tiempo=1):
+    '''
+    Calcula la transferencia de entropia para todas las combinaciones de 
+    dimensiones posibles de la muestra a un tiempo t una de la otra.
+    '''
+    dimensiones = muestra.shape[1]
+    combinaciones = list(combinations(np.arange(0,dimensiones),2))
+    resultados = np.zeros([dimensiones, dimensiones])-1
+    
+    for combinacion in combinaciones:
+        resultados[combinacion[0],combinacion[1]] = IT.TransferEntropy(muestra[:,combinacion[0]]+0, muestra[:,combinacion[1]]+0, r = tiempo)
+        
+    for i in np.arange(0,dimensiones):
+        for j in np.arange(0,dimensiones):
+            if i==j:
+                resultados[i,i] = 0 
+            elif resultados[i,j] == -1:
+                resultados[i,j] = resultados[j,i]
+            
+    
+    return resultados
+
+def transmisiones_entropia(muestra, rango=np.arange(1,30)):
+    '''
+    Calcula la transferencia de entropia para todas las combinaciones de 
+    dimensiones posibles de la muestra en un rango de tiempos.
+    Devuelve ademas la suma de esta misma para cada t distinto.
+    '''
+    resultados = []
+    sumas_entropia = np.zeros(len(rango))
+    for i in rango:
+        resultados.append(transmision_entropia(muestra, i))
+        sumas_entropia[i-1] = np.sum(resultados[i-1])
+        
+    return resultados, sumas_entropia
     
 #######################################################
 #Parametros del programa
@@ -507,10 +544,10 @@ variabilidad = 0.85
 #######################################################
 
 #runfile("./AnalyzeModel.py", "None")
+    
 if __name__ == '__main__':
     tipo_compresion = 4
     umbral_usado = 4
-    
     if sys.argv[1] == '-t':
         isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(0,1), umbral = umbral_usado, filename = sys.argv[1], temperatura = 1)
         
