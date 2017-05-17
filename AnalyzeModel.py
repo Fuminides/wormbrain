@@ -14,7 +14,9 @@ import ising as isng
 import matplotlib.pyplot as plt
 import numpy as np
 import ITtools as IT
+import IsingRecovery as IR
 
+from PIL import Image
 from kinetic_ising import ising, bitfield, bool2int
 from sklearn.decomposition import PCA
 from sklearn.ensemble import ExtraTreesClassifier
@@ -25,7 +27,7 @@ from numba import jit
 from scipy.optimize import curve_fit
 from RedClasificador import entrenar_clasificador, process_labels
 from IsingRecovery import save_isings, restore_ising
-from itertools import combinations
+from itertools import permutations
 
 
 sys.path.insert(0, '..')
@@ -505,11 +507,11 @@ def transmision_entropia(muestra, tiempo=1):
     dimensiones posibles de la muestra a un tiempo t una de la otra.
     '''
     dimensiones = muestra.shape[1]
-    combinaciones = list(combinations(np.arange(0,dimensiones),2))
+    permutaciones = list(permutations(np.arange(0,dimensiones),2))
     resultados = np.zeros([dimensiones, dimensiones])-1
     
-    for combinacion in combinaciones:
-        resultados[combinacion[0],combinacion[1]] = IT.TransferEntropy(muestra[:,combinacion[0]]+0, muestra[:,combinacion[1]]+0, r = tiempo)
+    for permutacion in permutaciones:
+        resultados[permutacion[0],permutacion[1]] = IT.TransferEntropy(muestra[:,permutacion[0]]+0, muestra[:,permutacion[1]]+0, r = tiempo)
         
     for i in np.arange(0,dimensiones):
         for j in np.arange(0,dimensiones):
@@ -521,7 +523,7 @@ def transmision_entropia(muestra, tiempo=1):
     
     return resultados
 
-def transmisiones_entropia(muestra, rango=np.arange(1,30)):
+def transmisiones_entropia(muestra, rango=np.arange(1,31), verboso = True, guardar = True):
     '''
     Calcula la transferencia de entropia para todas las combinaciones de 
     dimensiones posibles de la muestra en un rango de tiempos.
@@ -530,9 +532,17 @@ def transmisiones_entropia(muestra, rango=np.arange(1,30)):
     resultados = []
     sumas_entropia = np.zeros(len(rango))
     for i in rango:
+        if verboso:
+            print("Con T = " + str(i))
+            
         resultados.append(transmision_entropia(muestra, i))
         sumas_entropia[i-1] = np.sum(resultados[i-1])
         
+    if guardar:
+        for i in rango:
+            IR.save_image(resultados[i-1], "T" + str(i))
+            IR.save_results(resultados[i-1], "T" + str(i) + "_datos.dat")
+            
     return resultados, sumas_entropia
     
 #######################################################

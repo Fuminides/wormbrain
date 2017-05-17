@@ -3,7 +3,11 @@
 @author: Javier Fumanal Idocin
 """
 import pickle 
-import time
+import matplotlib as mpl
+import numpy as np
+
+from PIL import Image
+
 
 def save_isings(isings, fits, filename = 'filename_ising.obj'):
     '''
@@ -86,3 +90,21 @@ def load_results(nombre):
     file_write.close()
     
     return vari
+
+def save_image(data, nombre):
+    '''
+    Guarda un array de numpy como una imagen con el mapa de colores magma.
+    En formato PNG.
+    
+    data-- array a guardar
+    nombre -- nombre con el que guardar la imagen (sin extension)
+    '''
+    rescaled = (255.0 / data.max() * (data - data.min())).astype(np.uint8)
+    img_src = Image.fromarray(rescaled).resize([400,400])
+    cm_hot = mpl.cm.get_cmap('magma')
+    im = np.array(img_src)
+    im = cm_hot(im)
+    im = np.uint8(im * 255)
+    im = Image.fromarray(im)
+    
+    im.save("./Resultados/" + nombre + ".png")
