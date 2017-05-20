@@ -16,7 +16,6 @@ import numpy as np
 import ITtools as IT
 import IsingRecovery as IR
 
-from PIL import Image
 from kinetic_ising import ising, bitfield, bool2int
 from sklearn.decomposition import PCA
 from sklearn.ensemble import ExtraTreesClassifier
@@ -31,6 +30,14 @@ from itertools import permutations
 
 
 sys.path.insert(0, '..')
+
+#######################################################
+#Parametros del programa
+#######################################################
+gusano=0
+error=1E-3
+variabilidad = 0.85
+barajeo = None
 
 ##################################################
 # Funciones
@@ -144,6 +151,7 @@ def compresion(neural_activation, behavior, comprimir):
          2->Coge las mas correladas con las labels
          >=3 -> Coge ese mismo numero de neuronas aleatorias
     '''
+    global barajeo
     if comprimir == 1:
         pca = PCA()
         pca.fit(neural_activation)
@@ -181,10 +189,12 @@ def compresion(neural_activation, behavior, comprimir):
         
     elif comprimir >= 3:
         ##Eleccion aleatoria de neuronas
-        barajeo = np.arange(0,neural_activation.shape[1])
-        np.random.shuffle(barajeo)
+        if barajeo==None:
+            barajeo = np.arange(0,neural_activation.shape[1])
+            np.random.shuffle(barajeo)
+            
         neural_activation = neural_activation[:,barajeo[0:comprimir]]
-        print(neural_activation.shape)
+
     return neural_activation
 
 
@@ -242,6 +252,8 @@ def umbralizar(neural_activation, umbral, verboso=False):
     if verboso:
         #Visualizar grafico de barras             
         act_hist = np.sum(np.greater_equal(neural_activation, umbral), axis = 0)
+        axes = plt.gca()
+        axes.set_ylim([0,T])
         plt.title("Activaciones de cada neurona")
         plt.bar(range(np.size(act_hist)),act_hist)
         
@@ -544,19 +556,34 @@ def transmisiones_entropia(muestra, rango=np.arange(1,31), verboso = True, guard
             IR.save_results(resultados[i-1], "T" + str(i) + "_datos.dat")
             
     return resultados, sumas_entropia
+
+def busca_conexiones(muestras, fiabilidad = 1):
+    conexiones = []
+    for matrix in muestras:
+        umbral = np.mean(matrix)
+        detectadas = np.less_equal(matrix, umbral)
+        conexiones.append(detectadas)
+        
+    plt.imshow(conexiones[0])
+    resultado = np.zeros(muestras[0].shape)
     
-#######################################################
-#Parametros del programa
-#######################################################
-gusano=0
-error=1E-3
-variabilidad = 0.85
+    for matrix in conexiones:
+        for i in np.arange(0,resultado.shape[0]):
+            for j in np.arange(0,resultado.shape[1]):
+                if matrix[i,j]:
+                    resultado[i,j] += 1
+    
+    return np.greater_equal(resultado, fiabilidad)
+        
+    
+
 #######################################################
 
 #runfile("./AnalyzeModel.py", "None")
     
 if __name__ == '__main__':
-    tipo_compresion = 4
+    tipo_compresion = 12
+    barajeo = None
     umbral_usado = 4
     if sys.argv[1] == '-t':
         isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(0,1), umbral = umbral_usado, filename = sys.argv[1], temperatura = 1)
@@ -576,7 +603,7 @@ if __name__ == '__main__':
     plt.plot(mejor_punto, valor,'ro')
             
     funcion, maximo, muestras, escala = aproximacion_sigmoidal(np.arange(0,1.5,0.1), entropias_calc[0:15], montecarlo=15)
-    y = UmbralCalc.entropia(UmbralCalc.cuenta_transiciones(umbralizadas))/escala
+    y = UmbralCalc.entropia(UmbralCalc.cuenta_estado(umbralizadas))/escala
     x = inversa_sigmoidal(y,*funcion)
     plt.plot(x,y*escala,'bo')
     print("Nuestro gusano es de listo: " + "{:.2f}".format(puntuar(y, maximo, funcion)[0]) + "/10")

@@ -139,7 +139,7 @@ class ising:
                 self.D[i,j]-=self.m[i]*self.m[j]
                 
 
-    def generate_sample(self,T, state = None):    #Generate a series of Monte Carlo samples
+    def generate_sample(self,T, state = None, booleans = False):    #Generate a series of Monte Carlo samples
         '''
         Genera una muestra de estados de Ising.
         
@@ -153,9 +153,14 @@ class ising:
         samples=[]
         for t in range(T):
             self.GlauberStep()
-            n=bool2int((self.s+1)/2)
-            samples+=[n]
-        return samples
+            if not booleans:
+                n=bool2int((self.s+1)/2)
+                samples+=[n]
+            else:
+                n=((self.s+1)/2)
+                samples.append(list(n))
+            
+        return np.array(samples)
         
         
     def independent_model(self, m):        #Set h to match an independen models with means m
