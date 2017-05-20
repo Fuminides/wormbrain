@@ -16,7 +16,6 @@ import numpy as np
 import ITtools as IT
 import IsingRecovery as IR
 
-from PIL import Image
 from kinetic_ising import ising, bitfield, bool2int
 from sklearn.decomposition import PCA
 from sklearn.ensemble import ExtraTreesClassifier
@@ -288,7 +287,7 @@ def crear_clasificador(gusano, filename = 'defecto', umbral = 4):
 
     
 @jit
-def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = False, gusanos = np.arange(0,5), filename = 'filename_ising.obj', temperatura = 1):
+def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = True, gusanos = np.arange(0,5), filename = 'filename_ising.obj', temperatura = 1):
     '''
     Entrena un modelo de ising para cada uno de los gusanos dados.
     Los escribe en un fichero, ademas de devolverlos como resultado.
@@ -302,12 +301,12 @@ def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = False
                     termine de entrenar
     gusano -- array con los indices de los gusanos a entrenar
     '''
-    isings = []
-    fits = []
+    isings = [ising(1)]
+    fits = [0.0]
     
     for gusano in gusanos:
         ##Cogemos los datos del gusano
-        (neural_activation,behavior)=worm.get_neural_activation(gusano)
+        (neural_activation,behavior)=worm.get_neural_activation(gusano, True)
         neural_activation = compresion(neural_activation, behavior, comprimir)
         
         ##Calculamos la dimension del array de las neuronas.
@@ -358,7 +357,7 @@ def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = False
     save_isings(isings, fits, filename)
     
     print("Entrenamientos finalizados. Todo correcto")
-    return isings, fits
+    return isings[1:], fits[1:]
     
     
 def punto_criticalidad(ising, tipo_compresion, gusano, montecarlo=15):
@@ -379,7 +378,7 @@ def punto_criticalidad(ising, tipo_compresion, gusano, montecarlo=15):
     plt.plot(np.arange(0,1.5,0.1), entropias_calc[0:15])
     plt.plot(mejor_punto, valor,'ro')
     
-    resultado = UmbralCalc.entropia_muestra(umbralizar(neural_activation,5), 2)
+    resultado = UmbralCalc.entropia_muestra(umbralizar(neural_activation,4), 2)
     plt.axhline(y=resultado, color='r', linestyle='-')
     
     funcion, maximo, muestras = aproximacion_sigmoidal(np.arange(0,1.5,0.1), entropias_calc[0:15], montecarlo=15)
@@ -452,6 +451,7 @@ def buscar_estable(ising, iteraciones = 5000, max_intentos=np.inf):
     
     return intentos*iteraciones, estable
 
+@jit
 def calculo_magnetismo(ising, precision = 50, verboso = True):
     '''
     Calcula el numero de intentos necesarios para llevar a un sistema ising a la
@@ -501,6 +501,7 @@ def calculo_magnetismo(ising, precision = 50, verboso = True):
     ising.T = T_original
     return intentos, facilidades
 
+@jit
 def transmision_entropia(muestra, tiempo=1):
     '''
     Calcula la transferencia de entropia para todas las combinaciones de 
@@ -539,9 +540,9 @@ def transmisiones_entropia(muestra, rango=np.arange(1,31), verboso = True, guard
         sumas_entropia[i-1] = np.sum(resultados[i-1])
         
     if guardar:
-        for i in rango:
-            IR.save_image(resultados[i-1], "T" + str(i))
-            IR.save_results(resultados[i-1], "T" + str(i) + "_datos.dat")
+        for i in np.arange(len(rango)):
+            IR.save_image(resultados[i], "T" + str(i+1))
+            IR.save_results(resultados[i], "T" + str(i+1) + "_datos.dat")
             
     return resultados, sumas_entropia
     
@@ -556,10 +557,10 @@ variabilidad = 0.85
 #runfile("./AnalyzeModel.py", "None")
     
 if __name__ == '__main__':
-    tipo_compresion = 4
+    tipo_compresion = 0
     umbral_usado = 4
     if sys.argv[1] == '-t':
-        isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(0,1), umbral = umbral_usado, filename = sys.argv[1], temperatura = 1)
+        isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(0,1), umbral = umbral_usado, filename = "ising_filtrado.dat", temperatura = 1)
         
     else:
         isings, fits = restore_ising()
