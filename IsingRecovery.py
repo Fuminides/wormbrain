@@ -23,7 +23,7 @@ def save_isings(isings, fits, filename = 'filename_ising.obj'):
     pickle.dump(fits, file_write)
     file_write.close()
 
-def restore_ising(filename = 'filename_ising_no_filtro.obj'):
+def restore_ising(filename = 'ising_filtrado.dat'):
     '''
     Lee y devuelve los isings guardados junto con sus medidas de error
     

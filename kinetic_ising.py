@@ -151,16 +151,19 @@ class ising:
                 self.s = state
                 
         samples=[]
+        result = []
         for t in range(T):
             self.GlauberStep()
-            if not booleans:
-                n=bool2int((self.s+1)/2)
-                samples+=[n]
-            else:
-                n=((self.s+1)/2)
-                samples.append(list(n))
+            n=bool2int((self.s+1)/2)
+            samples+=[n]
+        
+        if booleans:
+            for i in range(T):
+                result.append(bitfield(samples[i], self.size).tolist())
             
-        return np.array(samples)
+            return np.array(result)
+        else:        
+            return samples
         
         
     def independent_model(self, m):        #Set h to match an independen models with means m

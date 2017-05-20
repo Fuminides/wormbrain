@@ -367,7 +367,7 @@ def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = True,
         print("Terminado un entrenamiento: " + time.ctime())
     
     print("Escribiendo en fichero... ")
-    save_isings(isings, fits, filename)
+    save_isings(isings[1:], fits[1:], filename)
     
     print("Entrenamientos finalizados. Todo correcto")
     return isings[1:], fits[1:]
