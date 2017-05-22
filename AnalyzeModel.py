@@ -15,6 +15,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import ITtools as IT
 import IsingRecovery as IR
+import networkx as nx
+import plotly.plotly as py
+
 
 from kinetic_ising import ising, bitfield, bool2int
 from sklearn.decomposition import PCA
@@ -27,6 +30,8 @@ from scipy.optimize import curve_fit
 from RedClasificador import entrenar_clasificador, process_labels
 from IsingRecovery import save_isings, restore_ising
 from itertools import permutations
+from plotly.graph_objs import *
+
 
 
 sys.path.insert(0, '..')
@@ -284,7 +289,11 @@ def mandar_aviso_correo(gusano, destino = "javierfumanalidocin@gmail.com"):
 def crear_clasificador(gusano, filename = 'defecto', umbral = 4):
     '''
     Crea y guarda en un fichero un clasificador que detecta el comportamiento
-    del gusano a partir de su actividad neuronal
+    del gusano a partir de su actividad neuronal.
+    
+    gusano -- numero del gusano a entrenar.
+    filename -- nombre del fichero donde guardar el clasficador.
+    umbral -- umbral a utilizar para discretizar la actividad neuronal.
     '''
     (neural_activation,behavior)=worm.get_neural_activation(gusano)
     behavior = np.maximum(behavior, np.zeros(behavior.size))
@@ -313,6 +322,7 @@ def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = True,
     aviso_email -- si True, avisara por correo electronico cuando cada gusano
                     termine de entrenar
     gusano -- array con los indices de los gusanos a entrenar
+    temperatura -- temperatura a la que poner a funcionar el sistema
     '''
     isings = [ising(1)]
     fits = [0.0]
@@ -382,6 +392,7 @@ def punto_criticalidad(ising, tipo_compresion, gusano, montecarlo=15):
     tipo_compresion -- sistema de reduccion de dimensionalidad a utilizar para las neuronas.
                 (Usar el mismo que el usado para entrenar el ising)
     gusano -- gusano con el que comparar la entropia. (Usar el mismo que el entrenado con ising)
+    montecarlo -- numero de muestras para la aproximacion sigmoidal.
     '''
     entropias_calc = UmbralCalc.entropia_temperatura(ising, tipo_compresion)
     (neural_activation,behavior)=worm.get_neural_activation(0)
@@ -474,7 +485,8 @@ def calculo_magnetismo(ising, precision = 50, verboso = True):
     ising -- sistema a estudiar
     precision -- la resolucion con la que calcular el numero de intentos a utilizar.
     Ademas, es el numero de muestras que se estudian para medir la estabilidad del sistema.
-    (Un valor menor de 50 esta muy desaconsejado, ya que lleva a falsos positivos)
+    Un valor menor de 50 esta muy desaconsejado, ya que lleva a falsos positivos.
+    Recomendado: >50 y < 100
     verboso -- muestra una grafica con los resultados
     '''
     rango_estudio = np.arange(0,1.5,0.1)
@@ -484,7 +496,7 @@ def calculo_magnetismo(ising, precision = 50, verboso = True):
     for i in np.arange(0,rango_estudio.size):
         print("Con T igual a: " + str(rango_estudio[i]))
         ising.T = rango_estudio[i]
-        pruebas = np.zeros(15)
+        pruebas = np.zeros(10)
         for z in np.arange(pruebas.size):
             num, exito = buscar_estable(ising, precision, 500)
             if exito:
@@ -519,6 +531,9 @@ def transmision_entropia(muestra, tiempo=1):
     '''
     Calcula la transferencia de entropia para todas las combinaciones de 
     dimensiones posibles de la muestra a un tiempo t una de la otra.
+    
+    muestra -- actividad neuronal discretizada a estudiar.
+    tiempo -- distancia temporal a la que se quiere estudiar.
     '''
     dimensiones = muestra.shape[1]
     permutaciones = list(permutations(np.arange(0,dimensiones),2))
@@ -530,9 +545,7 @@ def transmision_entropia(muestra, tiempo=1):
     for i in np.arange(0,dimensiones):
         for j in np.arange(0,dimensiones):
             if i==j:
-                resultados[i,i] = 0 
-            elif resultados[i,j] == -1:
-                resultados[i,j] = resultados[j,i]
+                resultados[i,i] = 0
             
     
     return resultados
@@ -542,6 +555,11 @@ def transmisiones_entropia(muestra, rango=np.arange(1,31), verboso = True, guard
     Calcula la transferencia de entropia para todas las combinaciones de 
     dimensiones posibles de la muestra en un rango de tiempos.
     Devuelve ademas la suma de esta misma para cada t distinto.
+    
+    muestras -- actividad neuronal a analizar.
+    rango -- tiempos en los que analizar.
+    verboso -- muestra por pantalla el T en calculo si True.
+    guardar -- si true, guarda el resultado y una imagen del mismo con IsingRecovery.
     '''
     resultados = []
     sumas_entropia = np.zeros(len(rango))
@@ -559,25 +577,150 @@ def transmisiones_entropia(muestra, rango=np.arange(1,31), verboso = True, guard
             
     return resultados, sumas_entropia
 
-def busca_conexiones(muestras, fiabilidad = 1):
+def busca_conexiones(muestras):
+    '''
+    Devuelve una matriz con el numero de veces que un termino i,j
+    ha pasado el corte para considerado como una conexion.
+    
+    muestras -- actividad neuronal a analizar en diferentes tiempos.
+    '''
     conexiones = []
     for matrix in muestras:
-        umbral = np.mean(matrix)
+        for i in np.arange(0,matrix.shape[0]):
+            for j in np.arange(0,matrix.shape[1]):
+                if i==j:
+                    matrix[i,j] = 0
+                    
+        umbral = min(np.mean(matrix), np.median(matrix))
         detectadas = np.less_equal(matrix, umbral)
         conexiones.append(detectadas)
         
-    plt.imshow(conexiones[0])
     resultado = np.zeros(muestras[0].shape)
     
     for matrix in conexiones:
         for i in np.arange(0,resultado.shape[0]):
             for j in np.arange(0,resultado.shape[1]):
-                if matrix[i,j]:
+                if (i!=j) and (matrix[i,j]):
                     resultado[i,j] += 1
+                
     
-    return np.greater_equal(resultado, fiabilidad)
+    return resultado
+
+def reconstruir_red(muestra, fiabilidad = 1, verboso=True):
+    '''
+    A partir de una serie de muestras de transmision de entropia entre neuronas
+    reconstruye una aproximacion de las conexiones reales entre neuronas.
+    Devuelve un grafo dirigido y la matriz de conexiones.
+    
+    muestra -- entropia de cada conexion por pares en distintos tiempos.
+    fiabilidad -- nos quedaremos 
+    verboso -- muestra por pantalla las conexiones obtenidas
+    '''
+    fiabilidades = busca_conexiones(muestra)
+    fiabilidades = fiabilidades*1.0 / len(muestra)
+    conexiones = np.greater_equal(fiabilidades, fiabilidad)
+    
+    if verboso:
+        plt.imshow(conexiones)
         
+    g=nx.DiGraph()
+    for i in range(len(muestra[0])):
+        g.add_node(i)
+     
+    for i in range(conexiones.shape[0]):
+        for j in range(conexiones.shape[1]):            
+            if (i != j) and (conexiones[i,j]):
+                print("Añadida conexion: "+ str(i) + ", " + str(j))
+                g.add_edge(i,j)
+                
+    return g, conexiones
+        
+def dibujar_grafo(G):
+    '''
+    Dibujar el grafo dado usando plotly.
     
+    IMPORTANTE: requiere de un usuario/key ya definidos.
+    '''
+    G=nx.random_geometric_graph(200,0.125)
+    pos=nx.get_node_attributes(G,'pos')
+    
+    dmin=1
+    ncenter=0
+    for n in pos:
+        x,y=pos[n]
+        d=(x-0.5)**2+(y-0.5)**2
+        if d<dmin:
+            ncenter=n
+            dmin=d
+    
+    p=nx.single_source_shortest_path_length(G,ncenter)
+    edge_trace = Scatter(
+    x=[],
+    y=[],
+    line=Line(width=0.5,color='#888'),
+    hoverinfo='none',
+    mode='lines')
+
+    for edge in G.edges():
+        x0, y0 = G.node[edge[0]]['pos']
+        x1, y1 = G.node[edge[1]]['pos']
+        edge_trace['x'] += [x0, x1, None]
+        edge_trace['y'] += [y0, y1, None]
+    
+    node_trace = Scatter(
+        x=[],
+        y=[],
+        text=[],
+        mode='markers',
+        hoverinfo='text',
+        marker=Marker(
+            showscale=True,
+            # colorscale options
+            # 'Greys' | 'Greens' | 'Bluered' | 'Hot' | 'Picnic' | 'Portland' |
+            # Jet' | 'RdBu' | 'Blackbody' | 'Earth' | 'Electric' | 'YIOrRd' | 'YIGnBu'
+            colorscale='YIGnBu',
+            reversescale=True,
+            color=[],
+            size=10,
+            colorbar=dict(
+                thickness=15,
+                title='Número de conexiones',
+                xanchor='left',
+                titleside='right'
+            ),
+            line=dict(width=2)))
+    
+    for node in G.nodes():
+        x, y = G.node[node]['pos']
+        node_trace['x'].append(x)
+        node_trace['y'].append(y)
+    
+    for node, adjacencies in enumerate(G.adjacency_list()):
+        node_trace['marker']['color'].append(len(adjacencies))
+        node_info = '# of connections: '+str(len(adjacencies))
+        node_trace['text'].append(node_info)
+        
+    fig = Figure(data=Data([edge_trace, node_trace]),
+             layout=Layout(
+                title='<br>Red Neuronal Reconstruida',
+                titlefont=dict(size=16),
+                showlegend=False,
+                hovermode='closest',
+                margin=dict(b=20,l=5,r=5,t=40),
+                annotations=[ dict(
+                    text="Fuente : <a href='https://github.com/Fuminides/wormbrain'> https://github.com/Fuminides/wormbrain</a>",
+                    showarrow=False,
+                    xref="paper", yref="paper",
+                    x=0.005, y=-0.002 ) ],
+                xaxis=XAxis(showgrid=False, zeroline=False, showticklabels=False),
+                yaxis=YAxis(showgrid=False, zeroline=False, showticklabels=False)))
+
+    py.iplot(fig, filename='NeuralNetWorm')
+    
+    return fig
+
+    
+        
 
 #######################################################
 
