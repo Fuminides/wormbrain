@@ -30,6 +30,7 @@ from scipy.optimize import curve_fit
 from RedClasificador import entrenar_clasificador, process_labels
 from IsingRecovery import save_isings, restore_ising
 from itertools import permutations
+from random import random
 from plotly.graph_objs import *
 
 
@@ -348,6 +349,7 @@ def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = True,
         s=bitfield(sample[0],size)*2-1
         m1+=s/float(T)
         for n in sample[1:]:
+            #for t = sample de t + 5 
             sprev=s
             s=bitfield(n,size)*2-1
             m1+=s/float(T)
@@ -577,7 +579,14 @@ def transmisiones_entropia(muestra, rango=np.arange(1,31), verboso = True, guard
             
     return resultados, sumas_entropia
 
-def busca_conexiones(muestras):
+def largest_indices(ary, n):
+    """Devuelve los n indices mas grandes de un array de numpy."""
+    flat = ary.flatten()
+    indices = np.argpartition(flat, -n)[-n:]
+    indices = indices[np.argsort(-flat[indices])]
+    return np.unravel_index(indices, ary.shape)
+
+def busca_conexiones(muestras, ratio_real = True):
     '''
     Devuelve una matriz con el numero de veces que un termino i,j
     ha pasado el corte para considerado como una conexion.
@@ -585,14 +594,22 @@ def busca_conexiones(muestras):
     muestras -- actividad neuronal a analizar en diferentes tiempos.
     '''
     conexiones = []
+    ratio_nodo_arco = 1.5703971119133575
+    nodos_a_coger = int(muestras[0].shape[0] * ratio_nodo_arco)
+    
     for matrix in muestras:
         for i in np.arange(0,matrix.shape[0]):
             for j in np.arange(0,matrix.shape[1]):
                 if i==j:
                     matrix[i,j] = 0
-                    
-        umbral = min(np.mean(matrix), np.median(matrix))
-        detectadas = np.less_equal(matrix, umbral)
+        if not ratio_real:            
+            umbral = min(np.mean(matrix), np.median(matrix))
+            detectadas = np.less_equal(matrix, umbral)
+        else:
+            indexes = largest_indices(matrix, nodos_a_coger)
+            detectadas = np.zeros(matrix.shape)
+            detectadas[indexes] = 1
+            
         conexiones.append(detectadas)
         
     resultado = np.zeros(muestras[0].shape)
@@ -606,7 +623,7 @@ def busca_conexiones(muestras):
     
     return resultado
 
-def reconstruir_red(muestra, fiabilidad = 1, verboso=True):
+def reconstruir_red(muestra, ratio_real = True, fiabilidad = 1, cut_ciclos = True, verboso=True):
     '''
     A partir de una serie de muestras de transmision de entropia entre neuronas
     reconstruye una aproximacion de las conexiones reales entre neuronas.
@@ -616,16 +633,27 @@ def reconstruir_red(muestra, fiabilidad = 1, verboso=True):
     fiabilidad -- nos quedaremos 
     verboso -- muestra por pantalla las conexiones obtenidas
     '''
-    fiabilidades = busca_conexiones(muestra)
-    fiabilidades = fiabilidades*1.0 / len(muestra)
-    conexiones = np.greater_equal(fiabilidades, fiabilidad)
+    fiabilidades = busca_conexiones(muestra, ratio_real)
+    
+    if not ratio_real:
+        fiabilidades = fiabilidades*1.0 / len(muestra)
+        conexiones = np.greater_equal(fiabilidades, fiabilidad)
+    else:
+        ratio_nodo_arco = 1.5703971119133575
+        nodos_a_coger = int(muestra[0].shape[0] * ratio_nodo_arco)
+        indexes = largest_indices(fiabilidades, nodos_a_coger)
+        conexiones = np.zeros(fiabilidades.shape)
+        conexiones[indexes] = 1
+        
+    if cut_ciclos:
+        conexiones = corta_ciclos(conexiones)
     
     if verboso:
         plt.imshow(conexiones)
         
     g=nx.DiGraph()
     for i in range(len(muestra[0])):
-        g.add_node(i)
+        g.add_node(i, pos = [random(),random()])
      
     for i in range(conexiones.shape[0]):
         for j in range(conexiones.shape[1]):            
@@ -635,13 +663,15 @@ def reconstruir_red(muestra, fiabilidad = 1, verboso=True):
                 
     return g, conexiones
         
-def dibujar_grafo(G):
+def dibujar_grafo(G, name):
     '''
     Dibujar el grafo dado usando plotly.
     
+    G -- grafo a dibujar
+    name -- nombre del grafo/fichero de plotly donde guardarlo.
+    
     IMPORTANTE: requiere de un usuario/key ya definidos.
     '''
-    G=nx.random_geometric_graph(200,0.125)
     pos=nx.get_node_attributes(G,'pos')
     
     dmin=1
@@ -702,7 +732,7 @@ def dibujar_grafo(G):
         
     fig = Figure(data=Data([edge_trace, node_trace]),
              layout=Layout(
-                title='<br>Red Neuronal Reconstruida',
+                title='<br>' + name,
                 titlefont=dict(size=16),
                 showlegend=False,
                 hovermode='closest',
@@ -715,13 +745,61 @@ def dibujar_grafo(G):
                 xaxis=XAxis(showgrid=False, zeroline=False, showticklabels=False),
                 yaxis=YAxis(showgrid=False, zeroline=False, showticklabels=False)))
 
-    py.iplot(fig, filename='NeuralNetWorm')
+    py.iplot(fig, filename=name)
     
-    return fig
-
+def corta_ciclos_aux(conexiones, visitados, inicio, final):
+    '''
+    Funcion auxiliar de corta_ciclos(). Vamos, que no la uses.
+    '''
+    inicial = visitados
     
-        
+    for i in range(inicio, final):
+        for j in range(conexiones.shape[1]):
+    
+            if (conexiones[i,j]):
+                if j in visitados:
+                    conexiones[i,j] = False
+                else:
+                    visitados += [j]
+                    conexiones = corta_ciclos_aux(conexiones, visitados, j, j+1)
+                    
+        visitados = inicial  
+          
+    return conexiones
 
+def corta_ciclos(conexiones):
+    '''
+    Corta los ciclos de un grafo.
+    
+    conexiones -- matriz de conexiones del grafo (dirigido)
+    '''
+    return corta_ciclos_aux(conexiones, [0], 0, 1)          
+
+def graph_metrics(g):
+    '''
+    Caracteriza un grafo devolviendo:
+    ratio de conexiones, densidad del grafo, coeficiente de clustering medio 
+    y coeficiente medio de camino corto entre pares.
+    '''
+    ratio_conexion = len(g.edges()) / len(g.nodes())
+    densidad = nx.density(g)
+    avg_clus = nx.average_clustering(g.to_undirected())
+    
+    try:
+        avg_shrt = nx.average_shortest_path_length(g)
+    except nx.NetworkXError:
+        i = 0
+        avg_shrt = 0
+        for g_aux in nx.connected_component_subgraphs(g.to_undirected()):
+            if (len(g_aux.nodes())>1):
+                avg_shrt += nx.average_shortest_path_length(g_aux)
+                i += 1
+            
+        avg_shrt /= i
+            
+    return ratio_conexion, densidad, avg_clus, avg_shrt
+
+  
 #######################################################
 
 #runfile("./AnalyzeModel.py", "None")
@@ -736,7 +814,6 @@ if __name__ == '__main__':
         
     else:
         isings, fits = restore_ising()
-        isings[0].T = 1
 
     entropias_calc = UmbralCalc.entropia_temperatura(isings[0])
     mejor_punto, valor = derivada_maxima_aproximada(np.arange(0,3,0.1), entropias_calc)

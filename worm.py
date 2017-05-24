@@ -1,11 +1,71 @@
 import xlrd
-import numpy as np
 import csv
-from scipy.optimize import leastsq
+
+import numpy as np
 import matplotlib.pyplot as plt
 
-def get_neural_activation(sheet_index=0, filtro = True):
+from scipy.optimize import leastsq
 
+
+def get_real_connect():
+    '''
+    Carga el fichero de adyacencias reales de las neuronas un C.ellegans.
+    Devuelve una matriz.
+    '''
+    lector = csv.reader(open("./files/celegans277matrix.csv", 'r'), delimiter=',')
+    resultado = np.zeros([277,277])
+    i = 0
+    for row in lector:
+        resultado[i] = row
+        i += 1
+        
+    return resultado
+
+def asignar_conexion(neurona1, neurona2, neuronas, sinapsis, indice, conexiones):
+    if not (neurona1 in neuronas):
+        neuronas[neurona1] = indice
+        indice += 1
+    
+    if not (neurona2 in neuronas):
+        neuronas[neurona2] = indice
+        indice += 1
+    
+    ind1 = neuronas[neurona1]
+    ind2 = neuronas[neurona2]
+    
+    if sinapsis == 'Gap_junction':
+        conexiones[ind1,ind2] = True
+        conexiones[ind2,ind1] = True
+    elif sinapsis == 'Send':
+        conexiones[ind1,ind2] = True
+    elif sinapsis == 'Send_joint':
+        conexiones[ind1,ind2] = True
+    elif sinapsis == 'Receive':
+        conexiones[ind2,ind1] = True
+    elif sinapsis == 'Receive_joint':
+        conexiones[ind2,ind1] = True
+        
+    return indice
+    
+def load_real_connections():
+    '''
+    Devuelve una matriz de conexion con las conexiones reales del gusano.
+    '''
+    lectura_fichero = open("./files/neurodata.txt")
+    neurons = {}
+    indice = 0
+    resultado = np.zeros([200, 200]) #Tamano calculado a partir del dataset
+    for line in lectura_fichero:
+        claves = str.split(lectura_fichero.readline(), '\t')
+        neurona1 = claves[0]
+        neurona2 = claves[1]
+        sinapsis = claves[2]
+        indice = asignar_conexion(neurona1, neurona2, neurons, sinapsis, indice, resultado)
+        
+    return resultado
+    
+def get_neural_activation(sheet_index=0, filtro = True):
+   
 	xl_workbook = xlrd.open_workbook('files/pnas.1507110112.sd01.xls')
 #	print xl_workbook.sheet_names()
 	xl_sheet = xl_workbook.sheet_by_index(sheet_index)	#Select sheet [0-4]
