@@ -41,7 +41,7 @@ sys.path.insert(0, '..')
 #Parametros del programa
 #######################################################
 gusano=0
-error=1E-3
+error=1E-5
 variabilidad = 0.85
 barajeo = None
 ratio_nodo_arco = 11.54
@@ -310,7 +310,7 @@ def crear_clasificador(gusano, filename = 'defecto', umbral = 4):
 
     
 @jit
-def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = True, gusanos = np.arange(0,5), filename = 'filename_ising.obj', temperatura = 1):
+def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = False, gusanos = np.arange(0,5), filename = 'filename_ising.obj', temperatura = 1, tiempo = 1):
     '''
     Entrena un modelo de ising para cada uno de los gusanos dados.
     Los escribe en un fichero, ademas de devolverlos como resultado.
@@ -348,9 +348,11 @@ def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = True,
         D1=np.zeros((size,size))
         s=bitfield(sample[0],size)*2-1
         m1+=s/float(T)
-        for n in sample[1:]:
+        
+        for l in np.arange(tiempo,T):
+            n = sample[l]
             #for t = sample de t + 5 
-            sprev=s
+            sprev=bitfield(sample[l-tiempo],size)*2-1
             s=bitfield(n,size)*2-1
             m1+=s/float(T)
             for i in range(size):
@@ -820,7 +822,7 @@ if __name__ == '__main__':
     umbral_usado = 4
     
     if sys.argv[1] == '-t':
-        isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(0,1), umbral = umbral_usado, filename = "ising_filtrado.dat", temperatura = 1)
+        isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(0,1), umbral = umbral_usado, filename = "ising_filtrado.dat", temperatura = 1, tiempo = 5)
         
     else:
         isings, fits = restore_ising()
