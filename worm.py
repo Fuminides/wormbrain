@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import leastsq
 
 
-def get_real_connect():
+def get_real_adjancency():
     '''
     Carga el fichero de adyacencias reales de las neuronas un C.ellegans.
     Devuelve una matriz.

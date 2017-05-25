@@ -31,7 +31,7 @@ from RedClasificador import entrenar_clasificador, process_labels
 from IsingRecovery import save_isings, restore_ising
 from itertools import permutations
 from random import random
-from plotly.graph_objs import *
+from plotly.graph_objs import Figure, Scatter, Line, Marker, Layout, Data, XAxis, YAxis
 
 
 
@@ -44,7 +44,7 @@ gusano=0
 error=1E-3
 variabilidad = 0.85
 barajeo = None
-
+ratio_nodo_arco = 11.54
 ##################################################
 # Funciones
 ##################################################
@@ -593,8 +593,9 @@ def busca_conexiones(muestras, ratio_real = True):
     
     muestras -- actividad neuronal a analizar en diferentes tiempos.
     '''
+    global ratio_nodo_arco
+    
     conexiones = []
-    ratio_nodo_arco = 1.5703971119133575
     nodos_a_coger = int(muestras[0].shape[0] * ratio_nodo_arco)
     
     for matrix in muestras:
@@ -623,6 +624,24 @@ def busca_conexiones(muestras, ratio_real = True):
     
     return resultado
 
+def construir_grafo(conexiones):
+    '''
+    Construye un grafo dirigido en base a una matriz de conexiones.
+    
+    conexiones -- matrix de conexiones [i,j] implica que i -> j
+    '''
+    g=nx.DiGraph()
+    for i in range(conexiones.shape[0]):
+        g.add_node(i, pos = [random(),random()])
+     
+    for i in range(conexiones.shape[0]):
+        for j in range(conexiones.shape[1]):            
+            if (i != j) and (conexiones[i,j]):
+                print("Añadida conexion: "+ str(i) + ", " + str(j))
+                g.add_edge(i,j)
+    
+    return g
+                
 def reconstruir_red(muestra, ratio_real = True, fiabilidad = 1, cut_ciclos = True, verboso=True):
     '''
     A partir de una serie de muestras de transmision de entropia entre neuronas
@@ -633,13 +652,15 @@ def reconstruir_red(muestra, ratio_real = True, fiabilidad = 1, cut_ciclos = Tru
     fiabilidad -- nos quedaremos 
     verboso -- muestra por pantalla las conexiones obtenidas
     '''
+    global ratio_nodo_arco
+    
     fiabilidades = busca_conexiones(muestra, ratio_real)
     
     if not ratio_real:
         fiabilidades = fiabilidades*1.0 / len(muestra)
         conexiones = np.greater_equal(fiabilidades, fiabilidad)
     else:
-        ratio_nodo_arco = 1.5703971119133575
+        
         nodos_a_coger = int(muestra[0].shape[0] * ratio_nodo_arco)
         indexes = largest_indices(fiabilidades, nodos_a_coger)
         conexiones = np.zeros(fiabilidades.shape)
@@ -651,15 +672,7 @@ def reconstruir_red(muestra, ratio_real = True, fiabilidad = 1, cut_ciclos = Tru
     if verboso:
         plt.imshow(conexiones)
         
-    g=nx.DiGraph()
-    for i in range(len(muestra[0])):
-        g.add_node(i, pos = [random(),random()])
-     
-    for i in range(conexiones.shape[0]):
-        for j in range(conexiones.shape[1]):            
-            if (i != j) and (conexiones[i,j]):
-                print("Añadida conexion: "+ str(i) + ", " + str(j))
-                g.add_edge(i,j)
+    g = construir_grafo(conexiones)
                 
     return g, conexiones
         
@@ -675,15 +688,12 @@ def dibujar_grafo(G, name):
     pos=nx.get_node_attributes(G,'pos')
     
     dmin=1
-    ncenter=0
     for n in pos:
         x,y=pos[n]
         d=(x-0.5)**2+(y-0.5)**2
         if d<dmin:
-            ncenter=n
             dmin=d
     
-    p=nx.single_source_shortest_path_length(G,ncenter)
     edge_trace = Scatter(
     x=[],
     y=[],
@@ -778,13 +788,13 @@ def corta_ciclos(conexiones):
 def graph_metrics(g):
     '''
     Caracteriza un grafo devolviendo:
-    ratio de conexiones, densidad del grafo, coeficiente de clustering medio 
-    y coeficiente medio de camino corto entre pares.
+    ratio de conexiones, densidad del grafo, coeficiente de clustering medio, 
+    porcentaje de conexiones posibles y coeficiente medio de camino corto entre pares.
     '''
     ratio_conexion = len(g.edges()) / len(g.nodes())
     densidad = nx.density(g)
     avg_clus = nx.average_clustering(g.to_undirected())
-    
+    posibles = len(g.edges()) / len(g.nodes())**2
     try:
         avg_shrt = nx.average_shortest_path_length(g)
     except nx.NetworkXError:
@@ -797,7 +807,7 @@ def graph_metrics(g):
             
         avg_shrt /= i
             
-    return ratio_conexion, densidad, avg_clus, avg_shrt
+    return ratio_conexion, densidad, posibles, avg_clus, avg_shrt
 
   
 #######################################################

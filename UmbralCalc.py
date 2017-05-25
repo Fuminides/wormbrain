@@ -117,6 +117,28 @@ def entropia_muestra(conjunto, transiciones, normalizar=False):
     
     return result
 
+def entropia_completa(muestra):
+    '''
+    Calcula la entropia de una muestra, y la suma de las entropias individuales
+    de sus variables.
+    '''
+    e_muestra = entropia(cuenta_estado(muestra))
+    e_individuales = 0
+    for i in range(muestra.shape[1]):
+        e_individuales += entropia(cuenta_estado(muestra[:,i]))
+        
+    return e_muestra, e_individuales
+
+def correlaciones_capturadas(model, original):
+    '''
+    Calcula el porcentaje de correlaciones capturadas en el modelo con respecto
+    a la muestra de entrenamiento del mismo.
+    '''
+    muestra = model.generate_sample(5000, booleans = True)
+    (total_m, indv_m) = entropia_completa(original)
+    (total_t, indv_t) = entropia_completa(muestra)
+    
+    return (indv_t - total_t) / (indv_m - total_m)
 ############################################
 
 def entropiaKneuronas(gusano, k, normalizar=False):
@@ -188,7 +210,7 @@ def kMejores():
         plt.plot(np.divide(range(np.size(registro_entropias)),10.0),registro_entropias)
         print()
         
-    
+
 ########################################################
 
 if __name__ == '__main__':
