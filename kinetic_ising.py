@@ -127,10 +127,10 @@ class ising:
         P=P.astype(float)
         P/=np.sum(P)
         for ind,n in enumerate(ns):
-            s=bitfield(n,self.size)*2-1
-            eDiff = self.deltaE(s)
-            pflip=1.0/(1.0+np.exp((1/self.T)*eDiff))
-            self.m+= (s*(1-2*pflip))*P[ind]
+            s=bitfield(n,self.size)*2-1 #Pasar el estado n a bits
+            eDiff = self.deltaE(s) #Calcular la energia de ese estado
+            pflip=1.0/(1.0+np.exp((1/self.T)*eDiff)) #Calcular la probabilidad de cambiar de signo
+            self.m+= (s*(1-2*pflip))*P[ind] #Calculo extrano, pero esta ya bien
             d1, d2 = np.meshgrid(s*(1-2*pflip),s)
             self.D+= d1*d2*P[ind]
 
@@ -215,7 +215,7 @@ class ising:
        return False
    
     @jit
-    def inverse(self,m1,D1, error,sample, maximum_error = False, u = 0.1, verboso = True, max_iteration = mt.inf):
+    def inverse(self,m1,D1, error,sample, maximum_error = True, u = 0.1, verboso = True, max_iteration = mt.inf):
         '''
         Entrena el sistema de Ising utilizando descenso de gradiente.
         '''
@@ -236,6 +236,7 @@ class ising:
             self.h+=dh
             dJ=u*(D1-self.D)
             self.J+=dJ
+            
             if (maximum_error):
                fit = max (np.max(np.abs(self.m-m1)),np.max(np.abs(self.D-D1)))
             else:
@@ -263,8 +264,9 @@ class ising:
               
                if verboso:      
                   print(self.size,count,fit,u)
+                  
             count+=1
-            
+        print(max (np.max(np.abs(self.m-m1)),np.max(np.abs(self.D-D1)))) 
         return fit
         
 

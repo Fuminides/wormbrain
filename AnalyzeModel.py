@@ -41,13 +41,23 @@ sys.path.insert(0, '..')
 #Parametros del programa
 #######################################################
 gusano=0
-error=1E-5
+error=1E-3
 variabilidad = 0.85
 barajeo = None
 ratio_nodo_arco = 11.54
 ##################################################
 # Funciones
 ##################################################
+
+def color_bar(data):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ticks_at = [-abs(data).max(), 0, abs(data).max()]
+    cax = ax.imshow(data, interpolation='nearest', 
+                    origin='lower', extent=[0.0, 0.1, 0.0, 0.1],
+                    vmin=ticks_at[0], vmax=ticks_at[-1])
+    cbar = fig.colorbar(cax,ticks=ticks_at,format='%1.2g')
+    return cbar
 
 def sigmoidal(x,x0,k):
     '''
@@ -195,7 +205,7 @@ def compresion(neural_activation, behavior, comprimir):
         
     elif comprimir >= 3:
         ##Eleccion aleatoria de neuronas
-        if barajeo==None:
+        if barajeo is None:
             barajeo = np.arange(0,neural_activation.shape[1])
             np.random.shuffle(barajeo)
             
@@ -822,7 +832,7 @@ if __name__ == '__main__':
     umbral_usado = 4
     
     if sys.argv[1] == '-t':
-        isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(0,1), umbral = umbral_usado, filename = "ising_filtrado.dat", temperatura = 1, tiempo = 5)
+        isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(0,1), umbral = umbral_usado, filename = "ising_filtrado_t04.dat", temperatura = 1, tiempo = 5)
         
     else:
         isings, fits = restore_ising()
