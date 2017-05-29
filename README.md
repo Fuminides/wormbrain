@@ -41,4 +41,9 @@ Los principales ficheros son:
 - Worm: contiene funciones de QQL para trabajar con el set de datos de activación neuronal del gusano C.elegans.
 
 
+
+
+<p align="center">
+  <img src="https://0uunvw-ch3302.files.1drv.com/y4m3kkkGGV6HE_P4HmkoaNqXf6PqEf_aPQsn0yn0TWUUoYfTUuIO-psNG7bIXysG-vp-HdMac7nFOgV9pKJ0eWcXY2lXiGCxsGwEEKliGi9xHiJaoFvouYywAbF4f4AlrLNw-7BKMylsM9VNRzIJPdS6b6va_vvc5juTtK9b2KPZhZ4X-XIe-VkIo9UbMk8_gMAjyjtvE7PDkVeq6-aO4alIQ?width=256&height=231&cropmode=none"/>
+</p>
  
