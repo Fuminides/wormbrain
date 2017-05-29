@@ -1,0 +1,50 @@
+#!/usr/bin/env python
+
+import matplotlib.pyplot as plt
+import numpy as np
+import worm
+from itertools import combinations
+from kinetic_ising import ising, bitfield
+
+(neural_activation,behavior)=worm.get_neural_activation()
+a=worm.get_eigenworms()
+Nn=neural_activation.shape[1]
+T=neural_activation.shape[0]
+
+#th=np.sqrt(np.mean(neural_activation**2))
+th=np.mean(neural_activation)
+
+Nembodied=0
+
+w= np.unwrap(np.arctan2(a[1,:], a[2,:]))
+w1=np.diff(w)
+
+X=np.zeros((T,Nn+Nembodied),int)
+#for i in range(3):
+#	X[:,i]=(a[i,:]>0).astype(int)*2-1
+
+X[:,Nembodied:]=(neural_activation>th).astype(int)*2-1
+
+size= X.shape[1]
+T=X.shape[0]
+
+m1=np.zeros(size)
+D1=np.zeros((size,size))
+s=X[0,:]
+m1+=s/float(T)	
+for t in np.arange(1,T):
+	sprev=s
+	s=X[t,:]
+	m1+=s/float(T)
+	for i in range(size):
+		D1[:,i]+=s[i]*sprev/float(T-1)
+		
+for i in range(size):
+	for j in range(size):
+			D1[i,j]-=m1[i]*m1[j]
+print(m1)
+print(D1)
+
+plt.figure()
+plt.imshow(D1,interpolation='nearest')
+plt.show()

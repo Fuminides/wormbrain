@@ -1,0 +1,6 @@
+matplotlib
+networkx
+plotly
+sklearn
+numba
+numpy
