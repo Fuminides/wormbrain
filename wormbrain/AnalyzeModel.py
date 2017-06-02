@@ -40,16 +40,54 @@ sys.path.insert(0, '..')
 #######################################################
 #Parametros del programa
 #######################################################
-gusano=3
+gusano=0
 error=1E-3
-variabilidad = 0.85
+variabilidad = 0.7
 barajeo = None
 ratio_nodo_arco = 11.54
 ##################################################
 # Funciones
 ##################################################
 
+def calcMeanCov(muestra, booleans = True, tiempo_=5, size = 0):
+    '''
+    Calcula la media y las correlaciones de una muestra
+    '''
+    if booleans:
+        T = muestra.shape[0]
+        size = muestra.shape[1]
+        ##Calculamos la media y la covarianza de cada neurona
+        sample = np.zeros(T)
+        for i in range(T):
+            sample[i] = (bool2int(muestra[i,:]))
+    else:
+        T = len(muestra)
+        sample = muestra
+    
+    m1=np.zeros(size)
+    D1=np.zeros((size,size))
+    s=bitfield(sample[0],size)*2-1
+    m1+=s/float(T)
+    
+    for l in np.arange(tiempo_,T):
+        n = sample[l]
+        #for t = sample de t + 5 
+        sprev=bitfield(sample[l-tiempo_],size)*2-1
+        s=bitfield(n,size)*2-1
+        m1+=s/float(T)
+        for i in range(size):
+            D1[:,i]+=s[i]*sprev/float(T-1)
+            
+    for i in range(size):
+        for j in range(size):
+                D1[i,j]-=m1[i]*m1[j]
+                
+    return m1, D1
+
 def color_bar(data):
+    '''
+    Muestra por pantalla el color bar de un array de numpy.
+    '''
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ticks_at = [-abs(data).max(), 0, abs(data).max()]
@@ -110,10 +148,10 @@ def aproximacion_sigmoidal(x_func, entropias_calc, verboso=True, montecarlo=6):
     
     if verboso:
         plt.figure()
+        print(x_func)
         plt.plot(x_func, entropias_calc*escala)
         plt.plot(x_approx, montecarlo_sample*escala,'ro')
         plt.plot(x_func, y_new*escala)
-        plt.plot(x_func, y_derivada/derivada_sigmoidal(maximo,*popt)*escala)
         plt.plot(maximo, sigmoidal(maximo,*popt)*escala, 'yo')
     
     return popt, maximo, eleccion, escala
@@ -353,25 +391,8 @@ def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = False
         sample = np.zeros(T)
         for i in range(T):
            sample[i] = (bool2int(activaciones[i,:]))
-        
-        m1=np.zeros(size)
-        D1=np.zeros((size,size))
-        s=bitfield(sample[0],size)*2-1
-        m1+=s/float(T)
-        
-        for l in np.arange(tiempo,T):
-            n = sample[l]
-            #for t = sample de t + 5 
-            sprev=bitfield(sample[l-tiempo],size)*2-1
-            s=bitfield(n,size)*2-1
-            m1+=s/float(T)
-            for i in range(size):
-                D1[:,i]+=s[i]*sprev/float(T-1)
-                
-        for i in range(size):
-            for j in range(size):
-                    D1[i,j]-=m1[i]*m1[j]
-        
+           
+        m1, D1 = calcMeanCov(sample, booleans = False, tiempo_=tiempo, size = size)
 
         if (kinectic):
             y=ising(size)
@@ -565,7 +586,7 @@ def transmision_entropia(muestra, tiempo=1):
     
     return resultados
 
-def transmisiones_entropia(muestra, rango=np.arange(1,31), verboso = True, guardar = True):
+def transmisiones_entropia(muestra, rango=np.arange(1,31), verboso = True, guardar = False):
     '''
     Calcula la transferencia de entropia para todas las combinaciones de 
     dimensiones posibles de la muestra en un rango de tiempos.
@@ -822,42 +843,7 @@ def graph_metrics(g):
             
     return ratio_conexion, densidad, posibles, avg_clus, avg_shrt
 
-def calcMeanCov(muestra, booleans = True, tiempo_=5, size = 0):
-    '''
-    Calcula la mediay las correlaciones de una muestra
-    '''
-    if booleans:
-        T = muestra.shape[0]
-        size = muestra.shape[1]
-        ##Calculamos la media y la covarianza de cada neurona
-        sample = np.zeros(T)
-        for i in range(T):
-            sample[i] = (bool2int(muestra[i,:]))
-    else:
-        T = len(muestra)
-        sample = muestra
-    
-    m1=np.zeros(size)
-    D1=np.zeros((size,size))
-    s=bitfield(sample[0],size)*2-1
-    m1+=s/float(T)
-    
-    for l in np.arange(tiempo_,T):
-        n = sample[l]
-        #for t = sample de t + 5 
-        sprev=bitfield(sample[l-tiempo_],size)*2-1
-        s=bitfield(n,size)*2-1
-        m1+=s/float(T)
-        for i in range(size):
-            D1[:,i]+=s[i]*sprev/float(T-1)
-            
-    for i in range(size):
-        for j in range(size):
-                D1[i,j]-=m1[i]*m1[j]
-                
-    return m1, D1
-
-def validate_model(muestra, entrenar = True, verboso = True, estado_inicial = 0, tiempo_ = 5):
+def validate_model(muestra, model=None, entrenar = True, verboso = True, estado_inicial = 0, tiempo_ = 5):
     '''
     Devuelve las medias y covarianzas de una muestra y de una muestra generada 
     a partir de un modelo.
@@ -871,12 +857,14 @@ def validate_model(muestra, entrenar = True, verboso = True, estado_inicial = 0,
         si 2 -> estado inicial uno de la muestra
     tiempo_ -> X -> P(t+X) 
     '''
-    if entrenar:
-       isings, fits = train_ising(gusanos = np.arange(0,1), umbral = 4, tiempo = tiempo_)    
-    else:
-       isings, fits = restore_ising()
-       
-    model = isings[0]
+    if model is None:
+        if entrenar:
+           isings, fits = train_ising(gusanos = np.arange(0,1), umbral = 4, tiempo = tiempo_)    
+        else:
+           isings, fits = restore_ising()
+           
+        model = isings[0]
+        
     if estado_inicial == 1:
         model.generate_sample(20000)
         
@@ -891,7 +879,7 @@ def validate_model(muestra, entrenar = True, verboso = True, estado_inicial = 0,
         plt.plot(m0)
         plt.plot(m1)
         color_bar(D0)
-        color:bar(D1)
+        color_bar(D1)
     
     return m0,D0, m1,D1
 #######################################################
@@ -910,18 +898,20 @@ if __name__ == '__main__':
         isings, fits = restore_ising()
 
     entropias_calc = UmbralCalc.entropia_temperatura(isings[0])
-    mejor_punto, valor = derivada_maxima_aproximada(np.arange(0,3,0.1), entropias_calc)
+    mejor_punto, valor = derivada_maxima_aproximada(np.arange(-1,1.1,0.1), entropias_calc)
     (neural_activation,behavior)=worm.get_neural_activation(gusano)
     neural_activation = compresion(neural_activation, behavior, tipo_compresion)
     umbralizadas = umbralizar(neural_activation,umbral_usado)
     
     plt.figure()
-    plt.plot(np.arange(0,1.5,0.1), entropias_calc[0:15])
+    plt.plot(np.arange(-1,1.1,0.1), entropias_calc[0:21])
     plt.plot(mejor_punto, valor,'ro')
             
-    funcion, maximo, muestras, escala = aproximacion_sigmoidal(np.arange(0,1.5,0.1), entropias_calc[0:15], montecarlo=15)
-    y = UmbralCalc.entropia(UmbralCalc.cuenta_estado(umbralizadas))/escala
-    x = inversa_sigmoidal(y,*funcion)
+    funcion, maximo, muestras, escala = aproximacion_sigmoidal(np.arange(-1,1.1,0.1), entropias_calc, montecarlo=21)
+    #y = UmbralCalc.entropia(UmbralCalc.cuenta_estado(umbralizadas))/escala
+    #x = inversa_sigmoidal(y,*funcion)
+    x = 0
+    y = sigmoidal(x,*funcion)
     plt.plot(x,y*escala,'bo')
     print("Nuestro gusano es de listo: " + "{:.2f}".format(puntuar(y, maximo, funcion)[0]) + "/10")
     

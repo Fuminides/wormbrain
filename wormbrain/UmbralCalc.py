@@ -15,8 +15,7 @@ from sklearn.feature_selection import SelectKBest, f_classif
 ######################################
 # FUNCIONES
 ######################################
-
-
+    
 def cuenta_estado(activaciones):
     '''
     Cuenta el numero de veces que aparece cada estado en la muestra, y lo devuelve
@@ -71,20 +70,59 @@ def entropia(estados):
         
     return -suma
 
+def entropia_transiciones(model, tam = 1000, glauber=False):
+    '''
+    Calcula la entropia de las transiciones que genera un modelo.
+    (Solo tiene sentido con el ising cinetico)
+    
+    model -- modelo cinetico
+    muestra -- muestra a estudiar
+    '''
+    total = np.zeros(model.J.shape[0])
+    s = model.generate_sample(1, booleans = True)[0]
+    if not glauber:
+        for i in range(tam):
+            model.GlauberStep()
+            
+            h= model.H() * (1/model.T)
+            total += sum(h*np.tanh(h) - np.log(2*np.cosh(h)))
+
+        total /= tam
+        total = np.mean((total))
+    else:
+        for i in range(tam):
+            muestra = model.generate_sample(3, state=s, booleans = True)
+            s = muestra[2]
+            total += np.sum(AnalyzeModel.transmision_entropia(muestra))/muestra.shape[1]
+    
+    return -(total)
+
+def cap_calorifica(model, tam = 1000):
+    total = 0
+    model.generate_sample(1, booleans = True)[0]
+    for i in range(tam):
+        model.GlauberStep()
+        h = model.H()
+        B = 1/model.T
+        total += h**2 * B**2 / np.cosh(h*B)**2 + B*(model.s*h - np.dot(model.s,h))*(B*h*np.tanh(B*h)-np.log(2*np.cosh(B*h)))
+        
+    total /= tam
+    return  np.mean(total)
+        
+        
 def calculate_entropy_ising(ising,tamano_muestra=1000, transiciones = False):
     '''
     Genera una muestra aleatoria de un ising y calcula la entropia de la misma
     '''
-    muestra = ising.generate_sample(tamano_muestra)
-
-    if (transiciones == False):
-        return entropia(cuenta_estado(muestra))
+    if (transiciones == True):
+        return entropia_transiciones(ising, tam=tamano_muestra)
     else:
+        muestra = ising.generate_sample(tamano_muestra)
         return entropia(cuenta_transiciones(muestra))
         
 
 
-def entropia_temperatura(ising, temperaturas=np.arange(0,3,0.1), tamano_muestra=1000):
+def entropia_temperatura(ising, temperaturas=10**np.arange(-1,1.1,0.1), tamano_muestra=1000):
     '''
     Devuelve la entropia del sistema ising para cada temperatura del rango dado.
     (No modifica la temperatura del sistema original)
@@ -94,7 +132,7 @@ def entropia_temperatura(ising, temperaturas=np.arange(0,3,0.1), tamano_muestra=
     
     for n in np.arange(0,len(temperaturas)):
         ising.T = temperaturas[n]
-        entropias[n] = calculate_entropy_ising(ising, transiciones=False)
+        entropias[n] = calculate_entropy_ising(ising, transiciones=True)
         
     ising.T = temperatura_original
     return entropias
@@ -212,7 +250,4 @@ def kMejores():
         
 
 ########################################################
-
-if __name__ == '__main__':
-    pr = entropiaKneuronas(0, 2)
     
