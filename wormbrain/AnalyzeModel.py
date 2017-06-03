@@ -6,7 +6,6 @@
 import sys
 import smtplib
 import worm
-import time
 import scipy
 import UmbralCalc
 
@@ -32,7 +31,7 @@ from IsingRecovery import save_isings, restore_ising
 from itertools import permutations
 from random import random
 from plotly.graph_objs import Figure, Scatter, Line, Marker, Layout, Data, XAxis, YAxis
-
+from timeit import default_timer as timer
 
 
 sys.path.insert(0, '..')
@@ -152,6 +151,7 @@ def aproximacion_sigmoidal(x_func, entropias_calc, verboso=True, montecarlo=6):
         plt.plot(x_func, entropias_calc*escala)
         plt.plot(x_approx, montecarlo_sample*escala,'ro')
         plt.plot(x_func, y_new*escala)
+        plt.plot(x_func, y_derivada*escala)
         plt.plot(maximo, sigmoidal(maximo,*popt)*escala, 'yo')
     
     return popt, maximo, eleccion, escala
@@ -393,6 +393,7 @@ def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = False
            sample[i] = (bool2int(activaciones[i,:]))
            
         m1, D1 = calcMeanCov(sample, booleans = False, tiempo_=tiempo, size = size)
+        start = timer()
 
         if (kinectic):
             y=ising(size)
@@ -409,8 +410,15 @@ def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = False
         
         if aviso_email:
             mandar_aviso_correo(str(gusano+1))
-        
-        print("Terminado un entrenamiento: " + time.ctime())
+        end = timer()
+        diferencia = end-start
+        minutos = diferencia /60
+        segundos = diferencia%60
+        horas = minutos/60
+        minutos = minutos%60
+        dias = horas%24
+        horas = horas /24
+        print("Terminado un entrenamiento: " + str(int(dias)) + " dias " + str(int(horas)) + " horas " + str(int(minutos)) + " minutos " + "{:.2f}".format(segundos) + " segundos")
     
     print("Escribiendo en fichero... ")
     save_isings(isings[1:], fits[1:], filename)
@@ -887,12 +895,13 @@ def validate_model(muestra, model=None, entrenar = True, verboso = True, estado_
 #runfile("./AnalyzeModel.py", "None")
     
 if __name__ == '__main__':
-    tipo_compresion = 0
+    tipo_compresion = 12
     barajeo = None
     umbral_usado = 4
+    tiempo_ = 1
     
     if sys.argv[1] == '-t':
-        isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(gusano,gusano+1), umbral = umbral_usado, filename = "ising_filtrado_t04.dat", temperatura = 1, tiempo = 5)
+        isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(gusano,gusano+1), umbral = umbral_usado, filename = "ising_filtrado_t" + str(tiempo_)+"_"+str(tipo_compresion)+".dat", temperatura = 1, tiempo = tiempo_)
         
     else:
         isings, fits = restore_ising()
