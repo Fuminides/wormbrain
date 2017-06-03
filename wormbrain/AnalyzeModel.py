@@ -171,6 +171,31 @@ def puntuar(resultado, maximo, parametros):
     
     return aux
 
+def capacidad_calorifica(modelo, rango=np.arange(-1,1.1,0.1), verboso = True):
+    '''
+    Devuelve las distintas capacidades calorificas del modelo para diferentes temperaturas
+    
+    modelo -- ising a estudiar
+    rango -- rango de temperaturas a estudiar, de modo que T = 10**rango[n] (Exponentes elevados a 10)
+    '''
+    ind = 0
+    res = np.zeros(len(rango))
+    aux = modelo.T
+
+    for i in rango:
+        modelo.T = 10**i
+        res[ind] = UmbralCalc.cap_calorifica(modelo)
+        ind+=1
+        
+        if int(10**i) == aux:
+            modelo_t = res[ind-1] 
+    modelo.T = aux
+    
+    if verboso:
+        print("El modelo tiene un " + str(int(modelo_t/np.max(res)*100)) + "% del maximo de cap.calorifica")
+        plt.plot(rango, res)
+        
+    return res
 def derivada_maxima_aproximada(indices_x,indices_y):
     '''
     Devuelve el punto de maximo crecimiento de una funcion de forma aproximada.
@@ -895,10 +920,10 @@ def validate_model(muestra, model=None, entrenar = True, verboso = True, estado_
 #runfile("./AnalyzeModel.py", "None")
     
 if __name__ == '__main__':
-    tipo_compresion = 12
+    tipo_compresion = 4
     barajeo = None
     umbral_usado = 4
-    tiempo_ = 1
+    tiempo_ = 3
     
     if sys.argv[1] == '-t':
         isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(gusano,gusano+1), umbral = umbral_usado, filename = "ising_filtrado_t" + str(tiempo_)+"_"+str(tipo_compresion)+".dat", temperatura = 1, tiempo = tiempo_)

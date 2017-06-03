@@ -42,7 +42,7 @@ def cuenta_transiciones(activaciones):
     cuenta_estados = {}
     anterior = None
     for estado in activaciones:
-        if anterior != None:
+        if not (anterior is None):
             convertido = str(estado) + str(anterior)
             if convertido in cuenta_estados:
                cuenta_estados[convertido] = cuenta_estados[convertido] + 1                   
@@ -110,7 +110,7 @@ def cap_calorifica(model, tam = 1000):
     return  np.mean(total)
         
         
-def calculate_entropy_ising(ising,tamano_muestra=1000, transiciones = False):
+def calculate_entropy_ising(ising,tamano_muestra=10000, transiciones = False):
     '''
     Genera una muestra aleatoria de un ising y calcula la entropia de la misma
     '''
