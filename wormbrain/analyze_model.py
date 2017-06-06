@@ -4,31 +4,24 @@
 """
 #!/usr/bin/env python
 import sys
-import smtplib
 import worm
-import scipy
-import UmbralCalc
+import entropy_metrics
 
 import ising as isng
 import matplotlib.pyplot as plt
 import numpy as np
-import ITtools as IT
-import IsingRecovery as IR
 import networkx as nx
 import plotly.plotly as py
+import math_tools as mt
 
 
-from kinetic_ising import ising, bitfield, bool2int
+from kinetic_ising import ising, bool2int
 from sklearn.decomposition import PCA
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.feature_selection import SelectFromModel
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from numba import jit
-from scipy.optimize import curve_fit
-from RedClasificador import entrenar_clasificador, process_labels
-from IsingRecovery import save_isings, restore_ising
-from itertools import permutations
+from red_clasificador import entrenar_clasificador, process_labels
+from ising_recovery import save_isings, restore_ising, mandar_aviso_correo
 from random import random
 from plotly.graph_objs import Figure, Scatter, Line, Marker, Layout, Data, XAxis, YAxis
 from timeit import default_timer as timer
@@ -42,120 +35,12 @@ sys.path.insert(0, '..')
 gusano=0
 error=1E-3
 variabilidad = 0.7
-barajeo = None
-ratio_nodo_arco = 11.54
+_barajeo = None
+_ratio_nodo_arco = 11.54
+
 ##################################################
 # Funciones
 ##################################################
-
-def calcMeanCov(muestra, booleans = True, tiempo_=5, size = 0):
-    '''
-    Calcula la media y las correlaciones de una muestra
-    '''
-    if booleans:
-        T = muestra.shape[0]
-        size = muestra.shape[1]
-        ##Calculamos la media y la covarianza de cada neurona
-        sample = np.zeros(T)
-        for i in range(T):
-            sample[i] = (bool2int(muestra[i,:]))
-    else:
-        T = len(muestra)
-        sample = muestra
-    
-    m1=np.zeros(size)
-    D1=np.zeros((size,size))
-    s=bitfield(sample[0],size)*2-1
-    m1+=s/float(T)
-    
-    for l in np.arange(tiempo_,T):
-        n = sample[l]
-        #for t = sample de t + 5 
-        sprev=bitfield(sample[l-tiempo_],size)*2-1
-        s=bitfield(n,size)*2-1
-        m1+=s/float(T)
-        for i in range(size):
-            D1[:,i]+=s[i]*sprev/float(T-1)
-            
-    for i in range(size):
-        for j in range(size):
-                D1[i,j]-=m1[i]*m1[j]
-                
-    return m1, D1
-
-def color_bar(data):
-    '''
-    Muestra por pantalla el color bar de un array de numpy.
-    '''
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ticks_at = [-abs(data).max(), 0, abs(data).max()]
-    cax = ax.imshow(data, interpolation='nearest', 
-                    origin='lower', extent=[0.0, 0.1, 0.0, 0.1],
-                    vmin=ticks_at[0], vmax=ticks_at[-1])
-    cbar = fig.colorbar(cax,ticks=ticks_at,format='%1.2g')
-    return cbar
-    
-def sigmoidal(x,x0,k):
-    '''
-    Calcula la funcion sigmoidal de un numero
-    '''
-    return 1 / (1+np.exp(-k*(x-x0)))
-
-def inversa_sigmoidal(y,x0,k):
-    '''
-    Devuelve la inversa de la sigmoidal
-    '''
-    return np.log(1/y - 1)/(-k) + x0
-
-def derivada_sigmoidal(x,x0,k):
-    '''
-    Calcula la derivada de la funcion sigmoidal de un numero
-    '''
-    return np.exp(-k*(x-x0)) /( (1+np.exp(-k*(x-x0)))**2)
-
-def aproximacion_sigmoidal(x_func, entropias_calc, verboso=True, montecarlo=6):
-    '''
-    Devuelve, dada una serie de puntos [x,y] una funcion que los aproxime
-    junto con su derivada, utilizando montecarlo.
-    
-    x_func -- x de los puntos
-    entropias_calc -- y de los puntos (se normaliza para el calculo)
-    grado -- grado de la funcion a aproximar
-    montecarlo -- numero de puntos a utilizar para la aproximacion
-    verboso -- si True, saca por pantalla una figura con el resultado.
-                Nota: La funcion derivada aparecera normalizada en la figura
-    '''
-    eleccion = np.random.choice(int(len(entropias_calc)), montecarlo, replace=False)
-    eleccion = np.sort(eleccion)
-    x_approx = x_func[eleccion]
-    escala = np.max(entropias_calc)
-    entropias_calc = entropias_calc/escala
-    montecarlo_sample = entropias_calc[eleccion]
-    popt, pcov = curve_fit(sigmoidal, x_approx, montecarlo_sample)
-    
-    y_new = np.zeros(montecarlo)
-    y_derivada  = np.zeros(montecarlo)
-    
-    indice = 0
-    for x in x_approx:
-        y_new[indice] = sigmoidal(x,*popt)
-        y_derivada[indice] = derivada_sigmoidal(x,*popt)
-        indice += 1
-    
-    maximo = scipy.optimize.fmin(lambda x: -derivada_sigmoidal(x, *popt), 0)
-    
-    if verboso:
-        plt.figure()
-        print(x_func)
-        plt.plot(x_func, entropias_calc*escala)
-        plt.plot(x_approx, montecarlo_sample*escala,'ro')
-        plt.plot(x_func, y_new*escala)
-        plt.plot(x_func, y_derivada*escala)
-        plt.plot(maximo, sigmoidal(maximo,*popt)*escala, 'yo')
-    
-    return popt, maximo, eleccion, escala
-
 def puntuar(resultado, maximo, parametros):
     '''
     Puntua del 0 al 10 como de cerca esta un valor de una sigmoidal de su
@@ -165,7 +50,7 @@ def puntuar(resultado, maximo, parametros):
     maximo -- valor donde la derivada de la sigmoidal es maxima
     parametros -- valores de ajuste de la sigmoidal (x0 y k)
     '''
-    aux = derivada_sigmoidal(inversa_sigmoidal(resultado,*parametros),*parametros) / derivada_sigmoidal(maximo,*parametros) * 10
+    aux = mt.derivada_sigmoidal(mt.inversa_sigmoidal(resultado,*parametros),*parametros) / mt.derivada_sigmoidal(maximo,*parametros) * 10
     if aux > 10:
         aux = 10 - aux%10
     
@@ -184,7 +69,7 @@ def capacidad_calorifica(modelo, rango=np.arange(-1,1.1,0.1), verboso = True):
 
     for i in rango:
         modelo.T = 10**i
-        res[ind] = UmbralCalc.cap_calorifica(modelo)
+        res[ind] = entropy_metrics.cap_calorifica(modelo)
         ind+=1
         
         if int(10**i) == aux:
@@ -196,27 +81,6 @@ def capacidad_calorifica(modelo, rango=np.arange(-1,1.1,0.1), verboso = True):
         plt.plot(rango, res)
         
     return res
-def derivada_maxima_aproximada(indices_x,indices_y):
-    '''
-    Devuelve el punto de maximo crecimiento de una funcion de forma aproximada.
-    
-    El punto se calcula calculando la pendiente entre cada par de puntos
-    consecutivos, y eligiendo el punto medio entre aquellos que posean la
-    mayor.
-    '''
-    maximo = 0
-    
-    for i in np.arange(1,len(indices_y)):
-        avanzado = abs(indices_y[i]-indices_y[i-1])
-        espacio = indices_x[i]-indices_x[i-1]
-
-        if avanzado/espacio > maximo:
-            resultado = (indices_x[i-1] + indices_x[i])/2 
-            maximo = avanzado/espacio
-            valor = indices_y[i-1] + (resultado-indices_x[i-1])*maximo
-    
-    return resultado,valor
-
 
 def compresion(neural_activation, behavior, comprimir):
     '''
@@ -230,7 +94,7 @@ def compresion(neural_activation, behavior, comprimir):
          2->Coge las mas correladas con las labels
          >=3 -> Coge ese mismo numero de neuronas aleatorias
     '''
-    global barajeo
+    global _barajeo
     if comprimir == 1:
         pca = PCA()
         pca.fit(neural_activation)
@@ -268,11 +132,11 @@ def compresion(neural_activation, behavior, comprimir):
         
     elif comprimir >= 3:
         ##Eleccion aleatoria de neuronas
-        if barajeo is None:
-            barajeo = np.arange(0,neural_activation.shape[1])
-            np.random.shuffle(barajeo)
+        if _barajeo is None:
+            _barajeo = np.arange(0,neural_activation.shape[1])
+            np.random.shuffle(_barajeo)
             
-        neural_activation = neural_activation[:,barajeo[0:comprimir]]
+        neural_activation = neural_activation[:,_barajeo[0:comprimir]]
 
     return neural_activation
 
@@ -337,28 +201,6 @@ def umbralizar(neural_activation, umbral, verboso=False):
         plt.bar(range(np.size(act_hist)),act_hist)
         
     return np.greater_equal(neural_activation, umbral)
-
-
-def mandar_aviso_correo(gusano, destino = "javierfumanalidocin@gmail.com"):
-    '''
-    Manda un correo para avisar del fin del entrenamiento de un gusano.
-    Por defecto lo manda a mi cuenta de correo.
-    Incluye una serie de practicas muy malas, soy consciente, pero por ahora
-    me simplifican la vida.
-    '''
-    print("Mandando correo...")
-    server = smtplib.SMTP('smtp.gmail.com', 587)
-    server.starttls()
-    server.login("wormbraindummy@gmail.com", "wormbraindummy1") #Es una practica horrorosa, lo se
-    msg = MIMEMultipart()
-    msg['From'] = "wormbraindummy@gmail.com"
-    msg['To'] = destino
-    msg['Subject'] = "Entrenamiento finalizado"
-    body = "Se ha terminado de entrenar el gusano " + gusano
-    msg.attach(MIMEText(body, 'plain'))
-    
-    server.sendmail("wormbraindummy@gmail.com", destino, msg.as_string())
-    server.quit()
     
 def crear_clasificador(gusano, filename = 'defecto', umbral = 4):
     '''
@@ -376,14 +218,14 @@ def crear_clasificador(gusano, filename = 'defecto', umbral = 4):
     
     barajeo = np.arange(behavior.size)
     np.random.shuffle(barajeo)
-    muestras = umbralizar(neural_activation[barajeo],5)
-    muestras_l = behavior[barajeo]
+    muestras = umbralizar(neural_activation[_barajeo],5)
+    muestras_l = behavior[_barajeo]
     corte = int(porcentaje_train*muestras.shape[0])
     entrenar_clasificador(muestras[0:corte,:], muestras[corte+1:,:],process_labels(muestras_l[0:corte]),  process_labels(muestras_l[corte+1:]), filename =str(gusano)+'_gusano.json')
 
     
 @jit
-def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = False, gusanos = np.arange(0,5), filename = 'filename_ising.obj', temperatura = 1, tiempo = 1, alfa = 0.1):
+def train_ising(kinetic=True, comprimir = 0, umbral = 0.17, aviso_email = False, gusanos = np.arange(0,5), filename = 'filename_ising.obj', temperatura = 1, tiempo = 1, alfa = 0.1):
     '''
     Entrena un modelo de ising para cada uno de los gusanos dados.
     Los escribe en un fichero, ademas de devolverlos como resultado.
@@ -417,14 +259,14 @@ def train_ising(kinectic=True, comprimir = 0, umbral = 0.17, aviso_email = False
         for i in range(T):
            sample[i] = (bool2int(activaciones[i,:]))
            
-        m1, D1 = calcMeanCov(sample, booleans = False, tiempo_=tiempo, size = size)
+        m1, D1 = mt.calcMeanCov(sample, booleans = False, tiempo_=tiempo, size = size)
         start = timer()
 
-        if (kinectic):
+        if (kinetic):
             y=ising(size)
             y.T = temperatura
             y.independent_model(m1)
-            fit=y.inverse(m1,D1,error,sample, u=alfa, max_iteration=1000)
+            fit=y.inverse(m1,D1,error,sample, u=alfa)
         else:
            y=isng.ising(size)
            y.T = temperatura
@@ -463,7 +305,7 @@ def punto_criticalidad(ising, tipo_compresion, gusano, montecarlo=15):
     gusano -- gusano con el que comparar la entropia. (Usar el mismo que el entrenado con ising)
     montecarlo -- numero de muestras para la aproximacion sigmoidal.
     '''
-    entropias_calc = UmbralCalc.entropia_temperatura(ising, tipo_compresion)
+    entropias_calc = entropy_metrics.entropia_temperatura(ising, tipo_compresion)
     (neural_activation,behavior)=worm.get_neural_activation(0)
     neural_activation = compresion(neural_activation, behavior, tipo_compresion)
     
@@ -471,49 +313,12 @@ def punto_criticalidad(ising, tipo_compresion, gusano, montecarlo=15):
     plt.plot(np.arange(0,1.5,0.1), entropias_calc[0:15])
     plt.plot(mejor_punto, valor,'ro')
     
-    resultado = UmbralCalc.entropia_muestra(umbralizar(neural_activation,4), 2)
+    resultado = entropy_metrics.entropia_muestra(umbralizar(neural_activation,4), 2)
     plt.axhline(y=resultado, color='r', linestyle='-')
     
-    funcion, maximo, muestras = aproximacion_sigmoidal(np.arange(0,1.5,0.1), entropias_calc[0:15], montecarlo=15)
-    
-def distribucion_probabilidad_estados(muestras, verboso = False):
-    '''
-    Devuelve ordenadas las probabilidades de cada estado de la muestra de mayor a menor.
-    
-    muestras -- array de muestras
-    entero -- indica si las muestras van en forma de enteros o de array de bools
-    verboso -- ensenya una grafica con las probabilidades (x logaritmo)
-    '''
-    ocurrencias = list(UmbralCalc.cuenta_estado(muestras).values())
-        
-    ocurrencias.sort(reverse=True)
-    ocurrencias = np.divide(ocurrencias,sum(ocurrencias))
-    
-    if verboso:
-        plt.figure()
-        plt.plot(np.log(np.arange(0,len(ocurrencias))),ocurrencias)
-        
-    return ocurrencias
+    funcion, maximo, muestras = mt.aproximacion_sigmoidal(np.arange(0,1.5,0.1), entropias_calc[0:15], montecarlo=15)
 
-def distribucion_probabilidad_transiciones(muestras, verboso = False):
-    '''
-    Devuelve ordenadas las probabilidades de cada estado de la muestra de mayor a menor.
-    
-    muestras -- array de muestras
-    entero -- indica si las muestras van en forma de enteros o de array de bools
-    verboso -- ensenya una grafica con las probabilidades (x logaritmico)
-    '''
-    ocurrencias = list(UmbralCalc.cuenta_transiciones(muestras).values())
-    ocurrencias.sort(reverse=True)
-    ocurrencias = np.divide(ocurrencias,sum(ocurrencias))
-    
-    if verboso:
-        plt.figure()
-        plt.plot(np.log(np.arange(0,len(ocurrencias))),ocurrencias)
-        
-    return ocurrencias
-
-def buscar_estable(ising, iteraciones = 5000, max_intentos=np.inf):
+def _buscar_estable(ising, iteraciones = 5000, max_intentos=np.inf):
     '''
     Termina cuando el sistema ising ha llegado a un punto estable.
     Devuelve de forma aproximada el numero de iteraciones que le ha costado
@@ -567,7 +372,7 @@ def calculo_magnetismo(ising, precision = 50, verboso = True):
         ising.T = rango_estudio[i]
         pruebas = np.zeros(10)
         for z in np.arange(pruebas.size):
-            num, exito = buscar_estable(ising, precision, 500)
+            num, exito = _buscar_estable(ising, precision, 500)
             if exito:
                 pruebas[z] = num
                 
@@ -595,58 +400,9 @@ def calculo_magnetismo(ising, precision = 50, verboso = True):
     ising.T = T_original
     return intentos, facilidades
 
-@jit
-def transmision_entropia(muestra, tiempo=1):
-    '''
-    Calcula la transferencia de entropia para todas las combinaciones de 
-    dimensiones posibles de la muestra a un tiempo t una de la otra.
-    
-    muestra -- actividad neuronal discretizada a estudiar.
-    tiempo -- distancia temporal a la que se quiere estudiar.
-    '''
-    dimensiones = muestra.shape[1]
-    permutaciones = list(permutations(np.arange(0,dimensiones),2))
-    resultados = np.zeros([dimensiones, dimensiones])-1
-    
-    for permutacion in permutaciones:
-        resultados[permutacion[0],permutacion[1]] = IT.TransferEntropy(muestra[:,permutacion[0]]+0, muestra[:,permutacion[1]]+0, r = tiempo)
-        
-    for i in np.arange(0,dimensiones):
-        for j in np.arange(0,dimensiones):
-            if i==j:
-                resultados[i,i] = 0
-            
-    
-    return resultados
 
-def transmisiones_entropia(muestra, rango=np.arange(1,31), verboso = True, guardar = False):
-    '''
-    Calcula la transferencia de entropia para todas las combinaciones de 
-    dimensiones posibles de la muestra en un rango de tiempos.
-    Devuelve ademas la suma de esta misma para cada t distinto.
-    
-    muestras -- actividad neuronal a analizar.
-    rango -- tiempos en los que analizar.
-    verboso -- muestra por pantalla el T en calculo si True.
-    guardar -- si true, guarda el resultado y una imagen del mismo con IsingRecovery.
-    '''
-    resultados = []
-    sumas_entropia = np.zeros(len(rango))
-    for i in rango:
-        if verboso:
-            print("Con T = " + str(i))
-            
-        resultados.append(transmision_entropia(muestra, i))
-        sumas_entropia[i-1] = np.sum(resultados[i-1])
-        
-    if guardar:
-        for i in np.arange(len(rango)):
-            IR.save_image(resultados[i], "T" + str(i+1))
-            IR.save_results(resultados[i], "T" + str(i+1) + "_datos.dat")
-            
-    return resultados, sumas_entropia
 
-def largest_indices(ary, n):
+def _largest_indices(ary, n):
     """Devuelve los n indices mas grandes de un array de numpy."""
     flat = ary.flatten()
     indices = np.argpartition(flat, -n)[-n:]
@@ -660,10 +416,10 @@ def busca_conexiones(muestras, ratio_real = True):
     
     muestras -- actividad neuronal a analizar en diferentes tiempos.
     '''
-    global ratio_nodo_arco
+    global _ratio_nodo_arco
     
     conexiones = []
-    nodos_a_coger = int(muestras[0].shape[0] * ratio_nodo_arco)
+    nodos_a_coger = int(muestras[0].shape[0] * _ratio_nodo_arco)
     
     for matrix in muestras:
         for i in np.arange(0,matrix.shape[0]):
@@ -674,7 +430,7 @@ def busca_conexiones(muestras, ratio_real = True):
             umbral = min(np.mean(matrix), np.median(matrix))
             detectadas = np.less_equal(matrix, umbral)
         else:
-            indexes = largest_indices(matrix, nodos_a_coger)
+            indexes = _largest_indices(matrix, nodos_a_coger)
             detectadas = np.zeros(matrix.shape)
             detectadas[indexes] = 1
             
@@ -719,7 +475,7 @@ def reconstruir_red(muestra, ratio_real = True, fiabilidad = 1, cut_ciclos = Tru
     fiabilidad -- nos quedaremos 
     verboso -- muestra por pantalla las conexiones obtenidas
     '''
-    global ratio_nodo_arco
+    global _ratio_nodo_arco
     
     fiabilidades = busca_conexiones(muestra, ratio_real)
     
@@ -728,8 +484,8 @@ def reconstruir_red(muestra, ratio_real = True, fiabilidad = 1, cut_ciclos = Tru
         conexiones = np.greater_equal(fiabilidades, fiabilidad)
     else:
         
-        nodos_a_coger = int(muestra[0].shape[0] * ratio_nodo_arco)
-        indexes = largest_indices(fiabilidades, nodos_a_coger)
+        nodos_a_coger = int(muestra[0].shape[0] * _ratio_nodo_arco)
+        indexes = _largest_indices(fiabilidades, nodos_a_coger)
         conexiones = np.zeros(fiabilidades.shape)
         conexiones[indexes] = 1
         
@@ -824,7 +580,7 @@ def dibujar_grafo(G, name):
 
     py.iplot(fig, filename=name)
     
-def corta_ciclos_aux(conexiones, visitados, inicio, final):
+def _corta_ciclos_aux(conexiones, visitados, inicio, final):
     '''
     Funcion auxiliar de corta_ciclos(). Vamos, que no la uses.
     '''
@@ -838,7 +594,7 @@ def corta_ciclos_aux(conexiones, visitados, inicio, final):
                     conexiones[i,j] = False
                 else:
                     visitados += [j]
-                    conexiones = corta_ciclos_aux(conexiones, visitados, j, j+1)
+                    conexiones = _corta_ciclos_aux(conexiones, visitados, j, j+1)
                     
         visitados = inicial  
           
@@ -850,7 +606,7 @@ def corta_ciclos(conexiones):
     
     conexiones -- matriz de conexiones del grafo (dirigido)
     '''
-    return corta_ciclos_aux(conexiones, [0], 0, 1)          
+    return _corta_ciclos_aux(conexiones, [0], 0, 1)          
 
 def graph_metrics(g):
     '''
@@ -904,35 +660,44 @@ def validate_model(muestra, model=None, entrenar = True, verboso = True, estado_
     elif estado_inicial == 2:
         model.s = muestra[0]*2-1
     
-    m0, D0 = calcMeanCov(muestra)
+    m0, D0 = mt.calcMeanCov(muestra)
     muestra_artificial = model.generate_sample(20000)
-    m1, D1 = calcMeanCov(muestra_artificial, booleans = False, size=muestra.shape[1], tiempo_=tiempo_)
+    m1, D1 = mt.calcMeanCov(muestra_artificial, booleans = False, size=muestra.shape[1], tiempo_=tiempo_)
     
     if verboso:
         plt.plot(m0)
         plt.plot(m1)
-        color_bar(D0)
-        color_bar(D1)
+        mt.color_bar(D0)
+        mt.color_bar(D1)
     
     return m0,D0, m1,D1
 #######################################################
 
-#runfile("./AnalyzeModel.py", "None")
+#runfile("./analyze_model.py", "None")
     
 if __name__ == '__main__':
-    tipo_compresion = 4
-    barajeo = None
+    #Si como compresion se escoge un numero de neuronas aleatorio:
+    #   Si barajeo == None: se escogen y barajeo para a indicar las elegidas.
+    #   Si barajero != None, se escogen las indicadas en barajeo
+    _barajeo = None
+    
+    tipo_compresion = 0
     umbral_usado = 4
-    tiempo_ = 3
+    tiempo_ = 1
+    tr = True
     
     if sys.argv[1] == '-t':
         isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(gusano,gusano+1), umbral = umbral_usado, filename = "ising_filtrado_t" + str(tiempo_)+"_"+str(tipo_compresion)+".dat", temperatura = 1, tiempo = tiempo_)
         
     else:
-        isings, fits = restore_ising()
+        if sys.argv[1] == "None":
+            isings, fits = restore_ising()
+        else:
+            isings, fits = restore_ising(sys.argv[1])
+            isings[0].T=1
 
-    entropias_calc = UmbralCalc.entropia_temperatura(isings[0])
-    mejor_punto, valor = derivada_maxima_aproximada(np.arange(-1,1.1,0.1), entropias_calc)
+    entropias_calc = entropy_metrics.entropia_temperatura(isings[0], trans=tr)
+    mejor_punto, valor = mt.derivada_maxima_aproximada(np.arange(-1,1.1,0.1), entropias_calc)
     (neural_activation,behavior)=worm.get_neural_activation(gusano)
     neural_activation = compresion(neural_activation, behavior, tipo_compresion)
     umbralizadas = umbralizar(neural_activation,umbral_usado)
@@ -941,11 +706,14 @@ if __name__ == '__main__':
     plt.plot(np.arange(-1,1.1,0.1), entropias_calc[0:21])
     plt.plot(mejor_punto, valor,'ro')
             
-    funcion, maximo, muestras, escala = aproximacion_sigmoidal(np.arange(-1,1.1,0.1), entropias_calc, montecarlo=21)
-    #y = UmbralCalc.entropia(UmbralCalc.cuenta_estado(umbralizadas))/escala
-    #x = inversa_sigmoidal(y,*funcion)
-    x = 0
-    y = sigmoidal(x,*funcion)
+    funcion, maximo, muestras, escala = mt.aproximacion_sigmoidal(np.arange(-1,1.1,0.1), entropias_calc, montecarlo=21)
+    if not tr:
+        y = entropy_metrics.entropia(entropy_metrics.cuenta_estado(umbralizadas))/escala
+        x = mt.inversa_sigmoidal(y,*funcion)
+    else:
+        x = 0
+        y = mt.sigmoidal(x,*funcion)
+        
     plt.plot(x,y*escala,'bo')
     print("Nuestro gusano es de listo: " + "{:.2f}".format(puntuar(y, maximo, funcion)[0]) + "/10")
     

@@ -5,7 +5,10 @@
 import pickle 
 import matplotlib as mpl
 import numpy as np
+import smtplib
 
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from PIL import Image
 
 
@@ -91,6 +94,27 @@ def load_results(nombre):
     
     return vari
 
+def mandar_aviso_correo(gusano, destino = "javierfumanalidocin@gmail.com"):
+    '''
+    Manda un correo para avisar del fin del entrenamiento de un gusano.
+    Por defecto lo manda a mi cuenta de correo.
+    Incluye una serie de practicas muy malas, soy consciente, pero por ahora
+    me simplifican la vida.
+    '''
+    print("Mandando correo...")
+    server = smtplib.SMTP('smtp.gmail.com', 587)
+    server.starttls()
+    server.login("wormbraindummy@gmail.com", "wormbraindummy1") #Es una practica horrorosa, lo se
+    msg = MIMEMultipart()
+    msg['From'] = "wormbraindummy@gmail.com"
+    msg['To'] = destino
+    msg['Subject'] = "Entrenamiento finalizado"
+    body = "Se ha terminado de entrenar el gusano " + gusano
+    msg.attach(MIMEText(body, 'plain'))
+    
+    server.sendmail("wormbraindummy@gmail.com", destino, msg.as_string())
+    server.quit()
+    
 def save_image(data, nombre):
     '''
     Guarda un array de numpy como una imagen con el mapa de colores magma.
