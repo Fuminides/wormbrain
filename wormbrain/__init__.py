@@ -1,5 +1,5 @@
-import AnalyzeModel
-import UmbralCalc
-import IsingRecovery
-import RedClasificador
-import kinetic_ising
+import analyze_model
+import entropy_metrics
+import ising_recovery
+import red_clasificador
+import math_tools
