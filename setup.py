@@ -18,6 +18,6 @@ setup(name='wormbrain',
           'numba',
           'numpy'  
       ],
-      dependency_links = [ 'https://github.com/MiguelAguilera/Python-Entropy-Tools' ],
+      dependency_links = [ 'https://github.com/Fuminides/Python-Entropy-Tools' ],
       zip_safe=False)
 

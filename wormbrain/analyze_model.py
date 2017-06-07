@@ -349,8 +349,8 @@ def _buscar_estable(ising, iteraciones = 5000, max_intentos=np.inf):
     
     return intentos*iteraciones, estable
 
-@jit
-def calculo_magnetismo(ising, precision = 50, rango_estudio = 10**np.arange(-1,1.1,0.1), verboso = True):
+
+def calculo_magnetismo(ising, precision = 40, rango_estudio = 10**np.arange(-1,1.1,0.1), verboso = True):
     '''
     Calcula el numero de intentos necesarios para llevar a un sistema ising a la
     estabilidad para diferentes temperaturas. Tambien devuelve la facilidad relativa para hacerlo 
@@ -364,10 +364,11 @@ def calculo_magnetismo(ising, precision = 50, rango_estudio = 10**np.arange(-1,1
     verboso -- muestra una grafica con los resultados
     '''
     T_original =  ising.T
-    intentos = np.zeros(15)
+    intentos = np.zeros(len(rango_estudio))
     
     for i in np.arange(0,rango_estudio.size):
-        print("Con T igual a: " + str(rango_estudio[i]))
+        if verboso:
+            print("Con T igual a: " + str(rango_estudio[i]))
         ising.T = rango_estudio[i]
         pruebas = np.zeros(10)
         for z in np.arange(pruebas.size):
@@ -376,11 +377,12 @@ def calculo_magnetismo(ising, precision = 50, rango_estudio = 10**np.arange(-1,1
                 pruebas[z] = num
                 
         intentos[i] = np.median(pruebas)
-        print(intentos[i])
+        if verboso:
+            print(intentos[i])
         if intentos[i] == 0:
             break
     
-    for i in intentos.size:
+    for i in range(intentos.size):
         if intentos[i] ==0:
             intentos[i] = np.max(intentos)
        
@@ -670,6 +672,15 @@ def validate_model(muestra, model=None, entrenar = True, verboso = True, estado_
         mt.color_bar(D1)
     
     return m0,D0, m1,D1
+
+def quick_load(gusano, tipo_compresion, umbral_usado):
+    '''
+    
+    '''
+    (neural_activation,behavior)=worm.get_neural_activation(gusano)
+    neural_activation = compresion(neural_activation, behavior, tipo_compresion)
+    
+    return umbralizar(neural_activation,umbral_usado)
 #######################################################
 
 #runfile("./analyze_model.py", "None")

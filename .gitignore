@@ -4,3 +4,6 @@ kinetic_ising.py
 files/pnas.1507110112.sd01.xls
 ITtools.py
 Modelos/-t
+build/
+wormbrain.egg-info/
+dist/
