@@ -350,7 +350,7 @@ def _buscar_estable(ising, iteraciones = 5000, max_intentos=np.inf):
     return intentos*iteraciones, estable
 
 @jit
-def calculo_magnetismo(ising, precision = 50, verboso = True):
+def calculo_magnetismo(ising, precision = 50, rango_estudio = 10**np.arange(-1,1.1,0.1), verboso = True):
     '''
     Calcula el numero de intentos necesarios para llevar a un sistema ising a la
     estabilidad para diferentes temperaturas. Tambien devuelve la facilidad relativa para hacerlo 
@@ -363,7 +363,6 @@ def calculo_magnetismo(ising, precision = 50, verboso = True):
     Recomendado: >50 y < 100
     verboso -- muestra una grafica con los resultados
     '''
-    rango_estudio = np.arange(0,1.5,0.1)
     T_original =  ising.T
     intentos = np.zeros(15)
     
@@ -388,12 +387,12 @@ def calculo_magnetismo(ising, precision = 50, verboso = True):
     if verboso:
         plt.figure()
         facilidades =  (np.max(intentos) - intentos) / np.max(intentos)
-        plt.plot(rango_estudio, facilidades)
+        plt.plot(np.log10(rango_estudio), facilidades)
         plt.ylabel('Facilidad de llevar a punto de estabilidad')
         plt.xlabel('Temperatura')
         
         plt.figure()
-        plt.plot(rango_estudio, intentos)
+        plt.plot(np.log10(rango_estudio), intentos)
         plt.ylabel('Numero de intentos para estabilizar')
         plt.xlabel('Temperatura')
         
@@ -681,7 +680,7 @@ if __name__ == '__main__':
     #   Si barajero != None, se escogen las indicadas en barajeo
     _barajeo = None
     
-    tipo_compresion = 0
+    tipo_compresion = 4
     umbral_usado = 4
     tiempo_ = 1
     tr = True
@@ -691,7 +690,7 @@ if __name__ == '__main__':
         
     else:
         if sys.argv[1] == "None":
-            isings, fits = restore_ising()
+            isings, fits = restore_ising("ising_filtrado_t"+str(tiempo_)+"_"+str(tipo_compresion)+".dat")
         else:
             isings, fits = restore_ising(sys.argv[1])
             isings[0].T=1
