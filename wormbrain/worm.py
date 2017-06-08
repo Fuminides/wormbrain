@@ -3,9 +3,25 @@ import csv
 
 import numpy as np
 import matplotlib.pyplot as plt
+import analyze_model as am
 
 from scipy.optimize import leastsq
 
+##################################################
+# Funciones
+##################################################
+
+def quick_load(gusano, tipo_compresion, umbral_usado):
+    '''
+    Carga umbralizada y comprimida la actividad neuronal del gusano especificada.
+    
+    gusano -- numero del gusano a cargar
+    tipo_compresion, umbral_usado -- consultar funciones de analyze_model
+    '''
+    (neural_activation,behavior)=get_neural_activation(gusano)
+    neural_activation = am.compresion(neural_activation, behavior, tipo_compresion)
+    
+    return am.umbralizar(neural_activation,umbral_usado)
 
 def get_real_adjancency():
     '''
@@ -522,6 +538,7 @@ def plot_movement(sheet_index=0):
 	exit(0)
 	
 	return Ml,Mr
+
 if __name__ == '__main__':
 
 #	(neural_activation,behavior) = get_neural_activation()

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from itertools import combinations
 from scipy.special import erfinv
 from numba import jit
+import numexpr as ne
 
     
 def bool2int(x):                #Transform bool array into positive integer
@@ -120,7 +121,7 @@ class ising:
             if np.random.rand() < 1.0/(1.0+np.exp(eDiff/self.T)):    # Glauber
                 self.s[i] = -self.s[i]
         
-    def deltaE(self,s,i=None):
+    def deltaE(self,s,i=None, parallel = False):
         if i is None:
             return 2*(s*self.h + s*np.dot(s,self.J) )
         else:
@@ -142,7 +143,7 @@ class ising:
             s=bitfield(n,self.size)*2-1 #Pasar el estado n a bits
             eDiff = self.deltaE(s) #Calcular la energia de ese estado
             pflip=1.0/(1.0+np.exp((1/self.T)*eDiff)) #Calcular la probabilidad de cambiar de signo
-            self.m+= (s*(1-2*pflip))*P[ind] #Calculo extrano, pero esta ya bien
+            self.m+= (s*(1-2*pflip))*P[ind]
             d1, d2 = np.meshgrid(s*(1-2*pflip),s)
             self.D+= d1*d2*P[ind]
 
@@ -224,11 +225,15 @@ class ising:
             
        self.convergencias_malas = 0
        return False
-   
-    @jit
-    def inverse(self,m1,D1, error,sample, maximum_error = True, u = 0.01, verboso = True, max_iteration = 1000000):
+        
+    #@jit
+    def inverse(self,m1,D1, error,sample, maximum_error = True, u = 0.01, verboso = True, max_iteration = np.inf, parallel = False):
         '''
         Entrena el sistema de Ising utilizando descenso de gradiente.
+        
+        parallel -- utiliza numexpr para acelerar algunas funciones (experimental).
+            Solo util para sistemas muy grandes (donde las matrices de pesos y medias son muy costosas de operar.)
+            Recomiendado no utilizarlas a menos que uno sepa lo que hace.
         '''
         count=0
         self.observables_sample(sample)
@@ -243,10 +248,22 @@ class ising:
         
         while (fit>error) and (max_iteration>count):
             self.observables_sample(sample)
-            dh=u*(m1-self.m)
-            self.h+=dh
-            dJ=u*(D1-self.D)
-            self.J+= dJ
+            
+            if parallel:
+                m = self.m
+                D = np.array(self.D)
+                h = self.h
+                J = self.J
+                dh = ne.evaluate("u*(m1-m)")
+                dJ = ne.evaluate("u*(D1-D)")
+                self.h = ne.evaluate("h + dh")
+                self.J = ne.evaluate("J+dJ")
+            else:
+                dh=u*(m1-self.m)
+                dJ=u*(D1-self.D)
+                self.h+=dh
+                self.J+= dJ
+            
             
             if (maximum_error):
                fit = max (np.max(np.abs(self.m-m1)),np.max(np.abs(self.D-D1)))

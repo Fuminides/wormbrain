@@ -26,9 +26,6 @@ from random import random
 from plotly.graph_objs import Figure, Scatter, Line, Marker, Layout, Data, XAxis, YAxis
 from timeit import default_timer as timer
 
-
-sys.path.insert(0, '..')
-
 #######################################################
 #Parametros del programa
 #######################################################
@@ -673,14 +670,7 @@ def validate_model(muestra, model=None, entrenar = True, verboso = True, estado_
     
     return m0,D0, m1,D1
 
-def quick_load(gusano, tipo_compresion, umbral_usado):
-    '''
-    
-    '''
-    (neural_activation,behavior)=worm.get_neural_activation(gusano)
-    neural_activation = compresion(neural_activation, behavior, tipo_compresion)
-    
-    return umbralizar(neural_activation,umbral_usado)
+
 #######################################################
 
 #runfile("./analyze_model.py", "None")
@@ -691,7 +681,6 @@ if __name__ == '__main__':
     #   Si barajero != None, se escogen las indicadas en barajeo
     _barajeo = None
     
-    tipo_compresion = 4
     umbral_usado = 4
     tiempo_ = 1
     tr = True
