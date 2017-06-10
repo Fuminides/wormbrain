@@ -152,12 +152,21 @@ class ising:
                 self.D[i,j]-=self.m[i]*self.m[j]
                 
 
-    def generate_sample(self,T, state = None, booleans = False):    #Generate a series of Monte Carlo samples
+    def generate_sample(self,T = None, state = None, booleans = False):    #Generate a series of Monte Carlo samples
         '''
         Genera una muestra de estados de Ising.
         
         state -- si no se facilita un estado inicial, se generara uno aleatorio.
         '''
+        if T is None:
+            minimum = 1000
+            maximum = 1000000
+            T = 2**self.size
+            if T > maximum:
+                T = maximum
+            if T < minimum:
+                T = minimum
+                
         if state is None:
                 self.randomize_state()
         else:
@@ -233,7 +242,7 @@ class ising:
         
         parallel -- utiliza numexpr para acelerar algunas funciones (experimental).
             Solo util para sistemas muy grandes (donde las matrices de pesos y medias son muy costosas de operar.)
-            Recomiendado no utilizarlas a menos que uno sepa lo que hace.
+            Recomendado no utilizarlas a menos que uno sepa lo que hace.
         '''
         count=0
         self.observables_sample(sample)

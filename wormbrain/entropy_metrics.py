@@ -122,11 +122,20 @@ def cap_calorifica(model, tam = 1000):
     return  np.mean(total)
         
         
-def calculate_entropy_ising(ising,tamano_muestra=10000, transiciones = False):
+def calculate_entropy_ising(ising,tamano_muestra=None, transiciones = False):
     '''
     Genera una muestra aleatoria de un ising y calcula la entropia de la misma
     '''
     if (transiciones == True):
+        if tamano_muestra is None:
+            minimum = 1000
+            maximum = 50000
+            tamano_muestra = 2**ising.size
+            if tamano_muestra > maximum:
+                tamano_muestra = maximum
+            if tamano_muestra < minimum:
+                tamano_muestra = minimum
+
         return entropia_transiciones(ising, tam=tamano_muestra)
     else:
         muestra = ising.generate_sample(tamano_muestra)
@@ -144,7 +153,7 @@ def entropia_temperatura(ising, temperaturas=10**np.arange(-1,1.1,0.1), tamano_m
     
     for n in np.arange(0,len(temperaturas)):
         ising.T = temperaturas[n]
-        entropias[n] = calculate_entropy_ising(ising, transiciones=trans)
+        entropias[n] = calculate_entropy_ising(ising, transiciones=trans, tamano_muestra=5000)
         
     ising.T = temperatura_original
     return entropias
@@ -184,7 +193,7 @@ def correlaciones_capturadas(model, original):
     Calcula el porcentaje de correlaciones capturadas en el modelo con respecto
     a la muestra de entrenamiento del mismo.
     '''
-    muestra = model.generate_sample(5000, booleans = True)
+    muestra = model.generate_sample(booleans = True)
     (total_m, indv_m) = entropia_completa(original)
     (total_t, indv_t) = entropia_completa(muestra)
     

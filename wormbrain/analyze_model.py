@@ -29,7 +29,6 @@ from timeit import default_timer as timer
 #######################################################
 #Parametros del programa
 #######################################################
-gusano=0
 error=1E-3
 variabilidad = 0.7
 _barajeo = None
@@ -53,7 +52,7 @@ def puntuar(resultado, maximo, parametros):
     
     return aux
 
-def capacidad_calorifica(modelo, rango=np.arange(-1,1.1,0.1), verboso = True):
+def capacidad_calorifica(modelo, rango=np.arange(-1,1.1,0.1), normalizar=True, verboso = True):
     '''
     Devuelve las distintas capacidades calorificas del modelo para diferentes temperaturas
     
@@ -77,7 +76,10 @@ def capacidad_calorifica(modelo, rango=np.arange(-1,1.1,0.1), verboso = True):
         print("El modelo tiene un " + str(int(modelo_t/np.max(res)*100)) + "% del maximo de cap.calorifica")
         plt.plot(rango, res)
         
-    return res
+    if normalizar:
+        return res/modelo.size
+    else:
+        return res
 
 def compresion(neural_activation, behavior, comprimir):
     '''
@@ -222,28 +224,27 @@ def crear_clasificador(gusano, filename = 'defecto', umbral = 4):
 
     
 @jit
-def train_ising(kinetic=True, comprimir = 0, umbral = 0.17, aviso_email = False, gusanos = np.arange(0,5), filename = 'filename_ising.obj', temperatura = 1, tiempo = 1, alfa = 0.1):
+def train_ising(data_sets, kinetic=True, comprimir = 0, umbral = 0.17, aviso_email = False, filename = 'filename_ising.obj', temperatura = 1, tiempo = 1, alfa = 0.1):
     '''
     Entrena un modelo de ising para cada uno de los gusanos dados.
     Los escribe en un fichero, ademas de devolverlos como resultado.
     Usa numba para optimizar el codigo.
     
+    data_sets -- array con los conjuntos de datos a entrenar
     kinetic -- Si True, usara el modelo de Ising cinetico. (Suele ser mejor)
     comprimir -- indica el tipo de compresion a utilizar para la 
                     dimensionalidad de las neuronas. (Consultar: compresion())
     umbral -- umbral a utilizar. Parametro funciona igual que para: umbralizar()
     aviso_email -- si True, avisara por correo electronico cuando cada gusano
                     termine de entrenar
-    gusano -- array con los indices de los gusanos a entrenar
     temperatura -- temperatura a la que poner a funcionar el sistema
     '''
     isings = [ising(1)]
     fits = [0.0]
-    
-    for gusano in gusanos:
+    gusanos = len(data_sets)
+    for gusano in range(gusanos):
         ##Cogemos los datos del gusano
-        (neural_activation,behavior)=worm.get_neural_activation(gusano, True)
-        neural_activation = compresion(neural_activation, behavior, comprimir)
+        neural_activation = data_sets[gusano]
         
         ##Calculamos la dimension del array de las neuronas.
         size = neural_activation.shape[1] #Numero de dimensiones
@@ -653,13 +654,13 @@ def validate_model(muestra, model=None, entrenar = True, verboso = True, estado_
         model = isings[0]
         
     if estado_inicial == 1:
-        model.generate_sample(20000)
+        model.generate_sample()
         
     elif estado_inicial == 2:
         model.s = muestra[0]*2-1
     
     m0, D0 = mt.calcMeanCov(muestra)
-    muestra_artificial = model.generate_sample(20000)
+    muestra_artificial = model.generate_sample()
     m1, D1 = mt.calcMeanCov(muestra_artificial, booleans = False, size=muestra.shape[1], tiempo_=tiempo_)
     
     if verboso:
@@ -681,25 +682,28 @@ if __name__ == '__main__':
     #   Si barajero != None, se escogen las indicadas en barajeo
     _barajeo = None
     
+    tipo_compresion = 0
     umbral_usado = 4
     tiempo_ = 1
     tr = True
+    gusano=0
+    umbralizadas = worm.quick_load(gusano, tipo_compresion, umbral_usado)
     
     if sys.argv[1] == '-t':
-        isings, fits = train_ising(comprimir=tipo_compresion, gusanos = np.arange(gusano,gusano+1), umbral = umbral_usado, filename = "ising_filtrado_t" + str(tiempo_)+"_"+str(tipo_compresion)+".dat", temperatura = 1, tiempo = tiempo_)
+        data = [umbralizadas]
+        isings, fits = train_ising(data, comprimir=tipo_compresion , umbral = umbral_usado, filename = "ising_filtrado_t" + str(tiempo_)+"_"+str(tipo_compresion)+".dat", temperatura = 1, tiempo = tiempo_)
         
     else:
         if sys.argv[1] == "None":
             isings, fits = restore_ising("ising_filtrado_t"+str(tiempo_)+"_"+str(tipo_compresion)+".dat")
+            isings[0].T=1
         else:
             isings, fits = restore_ising(sys.argv[1])
             isings[0].T=1
 
     entropias_calc = entropy_metrics.entropia_temperatura(isings[0], trans=tr)
     mejor_punto, valor = mt.derivada_maxima_aproximada(np.arange(-1,1.1,0.1), entropias_calc)
-    (neural_activation,behavior)=worm.get_neural_activation(gusano)
-    neural_activation = compresion(neural_activation, behavior, tipo_compresion)
-    umbralizadas = umbralizar(neural_activation,umbral_usado)
+    
     
     plt.figure()
     plt.plot(np.arange(-1,1.1,0.1), entropias_calc[0:21])

@@ -16,6 +16,7 @@ setup(name='wormbrain',
           'plotly',
           'sklearn',
           'numba',
+          'numexpr',
           'numpy'  
       ],
       dependency_links = [ 'https://github.com/Fuminides/Python-Entropy-Tools' ],
