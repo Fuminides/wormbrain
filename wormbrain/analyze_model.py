@@ -52,28 +52,43 @@ def puntuar(resultado, maximo, parametros):
     
     return aux
 
-def capacidad_calorifica(modelo, rango=np.arange(-1,1.1,0.1), normalizar=True, verboso = True):
+def capacidad_calorifica(modelo, rango=np.arange(-1,1.1,0.1), sigmoidal=False, normalizar=True, verboso = True):
     '''
     Devuelve las distintas capacidades calorificas del modelo para diferentes temperaturas
     
     modelo -- ising a estudiar
     rango -- rango de temperaturas a estudiar, de modo que T = 10**rango[n] (Exponentes elevados a 10)
+    sigmoidal -- calcula la capacidad calorifica a partir de la derivdada de la sigmoidal si true
     '''
-    ind = 0
     res = np.zeros(len(rango))
+    ind = 0
     aux = modelo.T
-
-    for i in rango:
-        modelo.T = 10**i
-        res[ind] = entropy_metrics.cap_calorifica(modelo)
-        ind+=1
-        
-        if int(10**i) == aux:
-            modelo_t = res[ind-1] 
-    modelo.T = aux
     
+    if not sigmoidal:
+        for i in rango:
+            modelo.T = 10**i
+            res[ind] = entropy_metrics.cap_calorifica(modelo)
+            ind+=1
+            
+            if int(10**i) == aux:
+                modelo_t = res[ind-1] 
+        modelo.T = aux
+    else:
+        maximo, funcion, escala = punto_criticalidad(modelo,True,rango=rango,verboso=False)
+        for i in rango:
+            res[ind] = mt.derivada_sigmoidal(i,*funcion) 
+            ind += 1
+            
+            if int(10**i) == aux:
+                modelo_t = res[ind-1] 
+                
     if verboso:
         print("El modelo tiene un " + str(int(modelo_t/np.max(res)*100)) + "% del maximo de cap.calorifica")
+        if normalizar:
+            plt.ylabel("Capacidad calorifica normalizada")
+        else:
+            plt.ylabel("Capacidad calorifica")
+        plt.xlabel("Temperatura")
         plt.plot(rango, res)
         
     if normalizar:
@@ -116,6 +131,7 @@ def compresion(neural_activation, behavior, comprimir):
         #Ensenamos figura con los valores propios (Por si queremos usar regla del codo)
         plt.plot(x_axis, variabilidades, 'r-')
         plt.axis([x_axis[0],1.0,0.0,variabilidades[0]])
+        plt.xlabel('Variabilidad')
         plt.ylabel('Valores propios')
         plt.show()
         
@@ -292,29 +308,29 @@ def train_ising(data_sets, kinetic=True, comprimir = 0, umbral = 0.17, aviso_ema
     return isings[1:], fits[1:]
     
     
-def punto_criticalidad(ising, tipo_compresion, gusano, montecarlo=15):
+def punto_criticalidad(modelo, tr=True, rango=np.arange(-1,1.1,0.1), montecarlo_=21, verboso=True):
     '''
     Muestra por pantalla el punto de criticalidad del sistema ising dado.
     La funcion sigmoidal se calcula por defecto y como maximo, con 15 temperaturas aleatorias.
     
     ising -- sistema ising entrenado
-    tipo_compresion -- sistema de reduccion de dimensionalidad a utilizar para las neuronas.
-                (Usar el mismo que el usado para entrenar el ising)
-    gusano -- gusano con el que comparar la entropia. (Usar el mismo que el entrenado con ising)
-    montecarlo -- numero de muestras para la aproximacion sigmoidal.
+    rango -- rango de temperaturas a estudiar.
+    montecarlo -- numero de muestras a utilizar para aproximar la funcion por montecarlo.
     '''
-    entropias_calc = entropy_metrics.entropia_temperatura(ising, tipo_compresion)
-    (neural_activation,behavior)=worm.get_neural_activation(0)
-    neural_activation = compresion(neural_activation, behavior, tipo_compresion)
+    entropias_calc = entropy_metrics.entropia_temperatura(modelo, trans=tr)
+    funcion, maximo, muestras, escala = mt.aproximacion_sigmoidal(rango, entropias_calc, montecarlo=min(montecarlo_,len(rango)), verboso=verboso)
     
-    plt.figure()
-    plt.plot(np.arange(0,1.5,0.1), entropias_calc[0:15])
-    plt.plot(mejor_punto, valor,'ro')
+    if not tr:
+       y = entropy_metrics.entropia(entropy_metrics.cuenta_estado(umbralizadas))/escala
+       x = mt.inversa_sigmoidal(y,*funcion)
+    else:
+       x = np.log10(modelo.T)
+       y = mt.sigmoidal(x,*funcion)
+        
+    if verboso:
+        plt.plot(x,y*escala,'bo')
     
-    resultado = entropy_metrics.entropia_muestra(umbralizar(neural_activation,4), 2)
-    plt.axhline(y=resultado, color='r', linestyle='-')
-    
-    funcion, maximo, muestras = mt.aproximacion_sigmoidal(np.arange(0,1.5,0.1), entropias_calc[0:15], montecarlo=15)
+    return maximo, funcion, escala
 
 def _buscar_estable(ising, iteraciones = 5000, max_intentos=np.inf):
     '''
@@ -631,7 +647,7 @@ def graph_metrics(g):
             
     return ratio_conexion, densidad, posibles, avg_clus, avg_shrt
 
-def validate_model(muestra, model=None, entrenar = True, verboso = True, estado_inicial = 0, tiempo_ = 5):
+def validate_model(muestra, model=None, entrenar = True, verboso = True, estado_inicial = 0, tiempo_ = 5, tam=None):
     '''
     Devuelve las medias y covarianzas de una muestra y de una muestra generada 
     a partir de un modelo.
@@ -654,20 +670,26 @@ def validate_model(muestra, model=None, entrenar = True, verboso = True, estado_
         model = isings[0]
         
     if estado_inicial == 1:
-        model.generate_sample()
+        model.generate_sample(tam)
         
     elif estado_inicial == 2:
         model.s = muestra[0]*2-1
     
     m0, D0 = mt.calcMeanCov(muestra)
-    muestra_artificial = model.generate_sample()
+    muestra_artificial = model.generate_sample(tam)
     m1, D1 = mt.calcMeanCov(muestra_artificial, booleans = False, size=muestra.shape[1], tiempo_=tiempo_)
     
     if verboso:
-        plt.plot(m0)
-        plt.plot(m1)
-        mt.color_bar(D0)
-        mt.color_bar(D1)
+        plt.figure()
+        plt.plot(m0, 'ro')
+        plt.xlabel("Neurona")
+        plt.ylabel("Medias originales")
+        plt.figure()
+        plt.plot(m1, 'ro')
+        plt.xlabel("Neurona")
+        plt.ylabel("Medias modelo")
+        mt.color_bar(D0, "Correlaciones originales")
+        mt.color_bar(D1, "Correlaciones del modelo")
     
     return m0,D0, m1,D1
 
@@ -702,19 +724,18 @@ if __name__ == '__main__':
             isings[0].T=1
 
     entropias_calc = entropy_metrics.entropia_temperatura(isings[0], trans=tr)
-    mejor_punto, valor = mt.derivada_maxima_aproximada(np.arange(-1,1.1,0.1), entropias_calc)
-    
-    
-    plt.figure()
-    plt.plot(np.arange(-1,1.1,0.1), entropias_calc[0:21])
-    plt.plot(mejor_punto, valor,'ro')
+    #Para sacar la aproximacion
+    #mejor_punto, valor = mt.derivada_maxima_aproximada(np.arange(-1,1.1,0.1), entropias_calc)
+    #plt.figure()
+    #plt.plot(np.arange(-1,1.1,0.1), entropias_calc[0:21])
+    #plt.plot(mejor_punto, valor,'ro')
             
     funcion, maximo, muestras, escala = mt.aproximacion_sigmoidal(np.arange(-1,1.1,0.1), entropias_calc, montecarlo=21)
     if not tr:
         y = entropy_metrics.entropia(entropy_metrics.cuenta_estado(umbralizadas))/escala
         x = mt.inversa_sigmoidal(y,*funcion)
     else:
-        x = 0
+        x = np.log10(isings[0].T)
         y = mt.sigmoidal(x,*funcion)
         
     plt.plot(x,y*escala,'bo')

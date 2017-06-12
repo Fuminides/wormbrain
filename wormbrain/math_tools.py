@@ -6,6 +6,7 @@ import entropy_metrics
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 
 from kinetic_ising import bool2int, bitfield
 from scipy.optimize import curve_fit, fmin
@@ -51,12 +52,32 @@ def calcMeanCov(muestra, booleans = True, tiempo_=5, size = 0):
                 
     return m1, D1
 
-def color_bar(data):
+def multiplot(data, labels):
+    '''
+    Muestra por pantalla una figura con todos los conjuntos de datos etiquetados 
+    con una leyenda en forma de parche.
+    
+    data -- conjuntos de datos a dibujar.
+    labels -- etiquetas para cada uno de los conjuntos.
+    '''
+    plt.figure()
+    patches=[]
+    z = 0
+    for i in data:
+        p = plt.plot(i)
+        patches.append(mpatches.Patch(color=p[0].get_color(), label=labels[z]))
+        z+=1
+    
+    plt.legend(handles=patches)
+    
+def color_bar(data, nombre = None):
     '''
     Muestra por pantalla el color bar de un array de numpy.
     '''
     fig = plt.figure()
     ax = fig.add_subplot(111)
+    if not(nombre is None):
+        ax.set_title(nombre)
     ticks_at = [-abs(data).max(), 0, abs(data).max()]
     cax = ax.imshow(data, interpolation='nearest', 
                     origin='lower', extent=[0.0, 0.1, 0.0, 0.1],
@@ -154,7 +175,7 @@ def aproximacion_sigmoidal(x_func, entropias_calc, verboso=True, montecarlo=6):
     escala = np.max(entropias_calc)
     entropias_calc = entropias_calc/escala
     montecarlo_sample = entropias_calc[eleccion]
-    popt, pcov = curve_fit(sigmoidal, x_approx, montecarlo_sample)
+    popt, pcov = curve_fit(sigmoidal, x_approx, montecarlo_sample, verbose=False)
     
     y_new = np.zeros(montecarlo)
     y_derivada  = np.zeros(montecarlo)

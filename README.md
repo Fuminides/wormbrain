@@ -26,6 +26,7 @@ Wormbrain requiere de los siguientes paquetes para funcionar:
  - Sklearn
  - Numba
  - Numpy
+ - Numexpr
 
 Además, se necesita del siguiente repositorio de Miguel Aguilera: https://github.com/MiguelAguilera/Python-Entropy-Tools
 En caso de utilizar el fichero setup.py para instalar Wormbrain, hay que introducir los ficheros contenidos en este repositorio en la carpeta raíz de Wormbrain.
@@ -33,12 +34,13 @@ En caso de utilizar el fichero setup.py para instalar Wormbrain, hay que introdu
 ## Estructura
 Los principales ficheros son:
 
-- AnalyzeModel: contiene todas las funciones de análisis del modelo, ya sea para buscar el punto crítico, o posibles conexiones de la red neuronal original de partir de los datos. Además de poseer algunas funciones adicionales de QQL. Si se ejecuta, carga un modelo de Ising ya guardado y calcula el punto crítico del sistema en comparación con la muestra con la que fue calculado.
-- KineticIsing: contiene todas las funciones para crear y entrenar un modelo Ising cinético a partir de un conjunto de datos, así como generar muestras a partir de él.
-- UmbralCalc: contiene funciones para realizar medidas de entropía y otras relacionadas con la misma, principalmente pensadas para buscar un buen umbral con el que discretizar un conjunto de datos.
-- IsingRecovery: contiene funciones para guardar y cargar de ficheros modelos, muestras y resultados.
-- RedClasificador: contiene las funciones para crear y entrenar una red neuronal con Keras como clasificador.
-- Worm: contiene funciones de QQL para trabajar con el set de datos de activación neuronal del gusano C.elegans.
+- analyze_model: contiene todas las funciones de análisis del modelo, ya sea para buscar el punto crítico, o posibles conexiones de la red neuronal original de partir de los datos. Si se ejecuta, carga un modelo de Ising ya guardado y calcula el punto crítico del sistema en comparación con la muestra con la que fue calculado.
+- kinetic_ising: contiene todas las funciones para crear y entrenar un modelo Ising cinético a partir de un conjunto de datos, así como generar muestras a partir de él.
+- entropy_metrics: contiene funciones para realizar medidas de entropía y otras relacionadas con la misma, como la capacidad calorifica del modelo.
+- ising_recovery: contiene funciones para guardar y cargar de ficheros modelos, muestras y resultados.
+- math_utils: contiene funciones para aproximar datos reales bien a una funci�n sigmoidal, bien a una distribuci�n de Zipf, adem�s de para facilitar la visualizaci�n de datos. 
+- red_clasificador: contiene las funciones para crear y entrenar una red neuronal con Keras como clasificador.
+- worm: contiene funciones de QQL para trabajar con el set de datos de activación neuronal del gusano C.elegans.
 
 
 

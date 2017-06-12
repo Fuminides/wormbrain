@@ -103,7 +103,7 @@ def entropia_transiciones(model, tam = 1000, glauber=False):
     
     return -(total)
 
-def cap_calorifica(model, tam = 1000):
+def cap_calorifica(model, tam = 5000):
     '''
     Calcula la capacidad calorifica de un sistema.
     
