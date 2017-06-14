@@ -175,7 +175,7 @@ def aproximacion_sigmoidal(x_func, entropias_calc, verboso=True, montecarlo=6):
     escala = np.max(entropias_calc)
     entropias_calc = entropias_calc/escala
     montecarlo_sample = entropias_calc[eleccion]
-    popt, pcov = curve_fit(sigmoidal, x_approx, montecarlo_sample, verbose=False)
+    popt, pcov = curve_fit(sigmoidal, x_approx, montecarlo_sample)
     
     y_new = np.zeros(montecarlo)
     y_derivada  = np.zeros(montecarlo)
@@ -190,11 +190,13 @@ def aproximacion_sigmoidal(x_func, entropias_calc, verboso=True, montecarlo=6):
     
     if verboso:
         plt.figure()
-        plt.plot(x_func, entropias_calc*escala)
-        plt.plot(x_approx, montecarlo_sample*escala,'ro')
-        plt.plot(x_func, y_new*escala)
-        plt.plot(x_func, y_derivada*escala)
-        plt.plot(maximo, sigmoidal(maximo,*popt)*escala, 'yo')
+        plt.semilogx(10**x_func, entropias_calc*escala)
+        plt.semilogx(10**x_approx, montecarlo_sample*escala,'ro')
+        plt.semilogx(10**x_func, y_new*escala)
+        plt.semilogx(10**x_func, y_derivada*escala)
+        plt.plot(10**maximo, sigmoidal(maximo,*popt)*escala, 'yo')
+        plt.xlabel('Temperatura')
+        plt.ylabel('Entropia')
     
     return popt, maximo, eleccion, escala
 

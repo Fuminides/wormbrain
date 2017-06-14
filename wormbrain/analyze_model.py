@@ -332,7 +332,7 @@ def punto_criticalidad(modelo, tr=True, rango=np.arange(-1,1.1,0.1), montecarlo_
     
     return maximo, funcion, escala
 
-def _buscar_estable(ising, iteraciones = 5000, max_intentos=np.inf):
+def _buscar_estable(model, max_intentos=1000):
     '''
     Termina cuando el sistema ising ha llegado a un punto estable.
     Devuelve de forma aproximada el numero de iteraciones que le ha costado
@@ -342,29 +342,18 @@ def _buscar_estable(ising, iteraciones = 5000, max_intentos=np.inf):
     iteraciones -- x numero de muestras en cada remesa de muestras
     max_intentos -- numero de remesas maximo a generar
     '''
-    estable = True
     intentos = 0
-    samples = ising.generate_sample(iteraciones, None);
-    valor_final = samples[0]
+    medias = np.zeros(model.size)
     
-    for i in np.arange(0,iteraciones):
-        if (valor_final != samples[i]):
-            estable = False
-            
-    while(not estable and (max_intentos >= intentos)):
-        estable = True
+    while max_intentos >= intentos:
         intentos += 1
-        samples = ising.generate_sample(iteraciones, ising.s);
-        valor_final = samples[0]
+        model.GlauberStep()
+        medias += model.s
     
-        for i in np.arange(0,iteraciones):
-            if (valor_final != samples[i]):
-                estable = False
-    
-    return intentos*iteraciones, estable
+    return np.abs(medias/intentos)
 
 
-def calculo_magnetismo(ising, precision = 40, rango_estudio = 10**np.arange(-1,1.1,0.1), verboso = True):
+def calculo_magnetismo(ising, precision = 500, rango_estudio = 10**np.arange(-1,1.1,0.1), verboso = True):
     '''
     Calcula el numero de intentos necesarios para llevar a un sistema ising a la
     estabilidad para diferentes temperaturas. Tambien devuelve la facilidad relativa para hacerlo 
@@ -378,42 +367,23 @@ def calculo_magnetismo(ising, precision = 40, rango_estudio = 10**np.arange(-1,1
     verboso -- muestra una grafica con los resultados
     '''
     T_original =  ising.T
-    intentos = np.zeros(len(rango_estudio))
+    medias = np.zeros(len(rango_estudio))
     
     for i in np.arange(0,rango_estudio.size):
         if verboso:
             print("Con T igual a: " + str(rango_estudio[i]))
         ising.T = rango_estudio[i]
-        pruebas = np.zeros(10)
-        for z in np.arange(pruebas.size):
-            num, exito = _buscar_estable(ising, precision, 500)
-            if exito:
-                pruebas[z] = num
-                
-        intentos[i] = np.median(pruebas)
-        if verboso:
-            print(intentos[i])
-        if intentos[i] == 0:
-            break
-    
-    for i in range(intentos.size):
-        if intentos[i] ==0:
-            intentos[i] = np.max(intentos)
+        medias[i] = (np.sum(_buscar_estable(ising, precision)))
        
     if verboso:
         plt.figure()
-        facilidades =  (np.max(intentos) - intentos) / np.max(intentos)
-        plt.plot(np.log10(rango_estudio), facilidades)
-        plt.ylabel('Facilidad de llevar a punto de estabilidad')
+        plt.semilogx(rango_estudio, medias)
+        plt.ylabel('Indice ')
         plt.xlabel('Temperatura')
-        
-        plt.figure()
-        plt.plot(np.log10(rango_estudio), intentos)
-        plt.ylabel('Numero de intentos para estabilizar')
-        plt.xlabel('Temperatura')
+        plt.xscale('log')
         
     ising.T = T_original
-    return intentos, facilidades
+    return medias
 
 
 
@@ -704,7 +674,7 @@ if __name__ == '__main__':
     #   Si barajero != None, se escogen las indicadas en barajeo
     _barajeo = None
     
-    tipo_compresion = 0
+    tipo_compresion = 4
     umbral_usado = 4
     tiempo_ = 1
     tr = True
@@ -722,7 +692,6 @@ if __name__ == '__main__':
         else:
             isings, fits = restore_ising(sys.argv[1])
             isings[0].T=1
-
     entropias_calc = entropy_metrics.entropia_temperatura(isings[0], trans=tr)
     #Para sacar la aproximacion
     #mejor_punto, valor = mt.derivada_maxima_aproximada(np.arange(-1,1.1,0.1), entropias_calc)
@@ -733,12 +702,12 @@ if __name__ == '__main__':
     funcion, maximo, muestras, escala = mt.aproximacion_sigmoidal(np.arange(-1,1.1,0.1), entropias_calc, montecarlo=21)
     if not tr:
         y = entropy_metrics.entropia(entropy_metrics.cuenta_estado(umbralizadas))/escala
-        x = mt.inversa_sigmoidal(y,*funcion)
+        x = 10**mt.inversa_sigmoidal(y,*funcion)
+        print("Nuestro gusano es de listo: " + "{:.2f}".format(puntuar(y, maximo, funcion)[0]) + "/10")
     else:
         x = np.log10(isings[0].T)
         y = mt.sigmoidal(x,*funcion)
         
-    plt.plot(x,y*escala,'bo')
-    print("Nuestro gusano es de listo: " + "{:.2f}".format(puntuar(y, maximo, funcion)[0]) + "/10")
+    plt.semilogx(10**x,y*escala,'bo')
     
     
