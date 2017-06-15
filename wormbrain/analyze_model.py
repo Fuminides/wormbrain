@@ -240,7 +240,7 @@ def crear_clasificador(gusano, filename = 'defecto', umbral = 4):
 
     
 @jit
-def train_ising(data_sets, kinetic=True, comprimir = 0, umbral = 0.17, aviso_email = False, filename = 'filename_ising.obj', temperatura = 1, tiempo = 1, alfa = 0.1):
+def train_ising(data_sets, kinetic=True, comprimir = 0, umbral = 0.17, aviso_email = False, filename = 'filename_ising.obj', temperatura = 1, tiempo = 1, alfa = 0.1, correo = "None"):
     '''
     Entrena un modelo de ising para cada uno de los gusanos dados.
     Los escribe en un fichero, ademas de devolverlos como resultado.
@@ -290,7 +290,7 @@ def train_ising(data_sets, kinetic=True, comprimir = 0, umbral = 0.17, aviso_ema
         fits.append(fit)
         
         if aviso_email:
-            mandar_aviso_correo(str(gusano+1))
+            mandar_aviso_correo(str(gusano+1), correo)
         end = timer()
         diferencia = end-start
         minutos = diferencia /60
@@ -674,7 +674,7 @@ if __name__ == '__main__':
     #   Si barajero != None, se escogen las indicadas en barajeo
     _barajeo = None
     
-    tipo_compresion = 4
+    tipo_compresion = 28
     umbral_usado = 4
     tiempo_ = 1
     tr = True
