@@ -52,7 +52,7 @@ def calcMeanCov(muestra, booleans = True, tiempo_=5, size = 0):
                 
     return m1, D1
 
-def multiplot(data, labels):
+def multiplot(data, labels, label_x, label_y, logscale=True, rango = 10**np.arange(-1,1.1,0.1)):
     '''
     Muestra por pantalla una figura con todos los conjuntos de datos etiquetados 
     con una leyenda en forma de parche.
@@ -64,11 +64,16 @@ def multiplot(data, labels):
     patches=[]
     z = 0
     for i in data:
-        p = plt.plot(i)
+        if logscale:            
+            p = plt.semilogx(rango,i)
+        else:
+            p = plt.plot(i)
         patches.append(mpatches.Patch(color=p[0].get_color(), label=labels[z]))
         z+=1
     
     plt.legend(handles=patches)
+    plt.xlabel(label_x)
+    plt.ylabel(label_y)
     
 def color_bar(data, nombre = None):
     '''
@@ -134,8 +139,9 @@ def zipf_approximation(real_data, transiciones=False, verboso = False):
     
     if verboso:
         plt.figure()
-        plt.semilogx(np.log(norm_prob))
-        plt.semilogx(np.log(zipf_sample(np.arange(1,len(real_data)+1),a=a_)),'r-')
+        plt.semilogx((norm_prob))
+        plt.semilogx((zipf_sample(np.arange(1,len(real_data)+1),a=a_)),'r-')
+        plt.yscale('log')
         
     return test1, test2, a_
 
