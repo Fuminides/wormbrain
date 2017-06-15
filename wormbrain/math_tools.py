@@ -136,6 +136,8 @@ def zipf_approximation(real_data, transiciones=False, verboso = False):
         plt.figure()
         plt.semilogx(np.log(norm_prob))
         plt.semilogx(np.log(zipf_sample(np.arange(1,len(real_data)+1),a=a_)),'r-')
+        plt.xlabel("Estado")
+        plt.ylabel("Probabilidad")
         
     return test1, test2, a_
 

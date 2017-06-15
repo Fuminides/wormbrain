@@ -94,7 +94,7 @@ def load_results(nombre):
     
     return vari
 
-def mandar_aviso_correo(gusano, destino = "javierfumanalidocin@gmail.com"):
+def mandar_aviso_correo(gusano, destino):
     '''
     Manda un correo para avisar del fin del entrenamiento de un gusano.
     Por defecto lo manda a mi cuenta de correo.
