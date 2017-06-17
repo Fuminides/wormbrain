@@ -32,7 +32,7 @@ from timeit import default_timer as timer
 error=1E-3
 variabilidad = 0.7
 _barajeo = None
-_ratio_nodo_arco = 11.54
+_ratio_nodo_arco = 11.14
 
 ##################################################
 # Funciones
@@ -131,8 +131,8 @@ def compresion(neural_activation, behavior, comprimir):
         #Ensenamos figura con los valores propios (Por si queremos usar regla del codo)
         plt.plot(x_axis, variabilidades, 'r-')
         plt.axis([x_axis[0],1.0,0.0,variabilidades[0]])
-        plt.xlabel('Variabilidad')
-        plt.ylabel('Valores propios')
+        plt.xlabel('Variabilidad acumulada')
+        plt.ylabel('Variabilidad añadida')
         plt.show()
         
         pca = PCA(n_components=componentes)
@@ -468,7 +468,6 @@ def reconstruir_red(muestra, ratio_real = True, fiabilidad = 1, cut_ciclos = Tru
         fiabilidades = fiabilidades*1.0 / len(muestra)
         conexiones = np.greater_equal(fiabilidades, fiabilidad)
     else:
-        
         nodos_a_coger = int(muestra[0].shape[0] * _ratio_nodo_arco)
         indexes = _largest_indices(fiabilidades, nodos_a_coger)
         conexiones = np.zeros(fiabilidades.shape)

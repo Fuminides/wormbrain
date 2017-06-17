@@ -83,9 +83,9 @@ def color_bar(data, nombre = None):
     ax = fig.add_subplot(111)
     if not(nombre is None):
         ax.set_title(nombre)
-    ticks_at = [-abs(data).max(), 0, abs(data).max()]
+    ticks_at = [data.min(), 0, (data).max()]
     cax = ax.imshow(data, interpolation='nearest', 
-                    origin='lower', extent=[0.0, 0.1, 0.0, 0.1],
+                    origin='lower', extent=[0, data.shape[0], 0, data.shape[1]],
                     vmin=ticks_at[0], vmax=ticks_at[-1])
     cbar = fig.colorbar(cax,ticks=ticks_at,format='%1.2g')
     return cbar
