@@ -76,7 +76,7 @@ def entropia(estados):
         
     return -suma
 
-def entropia_transiciones(model, tam = 1000, glauber=False):
+def entropia_transiciones(model, tam = 10000, glauber=False):
     '''
     Calcula la entropia de las transiciones que genera un modelo.
     (Solo tiene sentido con el ising cinetico)
@@ -85,18 +85,18 @@ def entropia_transiciones(model, tam = 1000, glauber=False):
     muestra -- muestra a estudiar
     '''
     total = np.zeros(model.J.shape[0])
-    s = model.generate_sample(1, booleans = True)[0]
+    model.GlauberStep()
     if not glauber:
         for i in range(tam):
             model.GlauberStep()
             
             h= model.H() * (1/model.T)
-            total += sum(h*np.tanh(h) - np.log(2*np.cosh(h)))
+            total += (h*np.tanh(h) - np.log(2*np.cosh(h)))
 
-        total /= tam
-        total = np.mean((total))
+        total = np.sum(total/tam)
     else:
         for i in range(tam):
+            s=model.s
             muestra = model.generate_sample(3, state=s, booleans = True)
             s = muestra[2]
             total += np.sum(transmision_entropia(muestra))/muestra.shape[1]
@@ -143,7 +143,7 @@ def calculate_entropy_ising(ising,tamano_muestra=None, transiciones = False):
         
 
 
-def entropia_temperatura(ising, temperaturas=10**np.arange(-1,1.1,0.1), tamano_muestra=10000,trans=True):
+def entropia_temperatura(ising, temperaturas=10**np.arange(-1,1.1,0.1), tamano_muestra_=10000,trans=True):
     '''
     Devuelve la entropia del sistema ising para cada temperatura del rango dado.
     (No modifica la temperatura del sistema original)
@@ -153,7 +153,7 @@ def entropia_temperatura(ising, temperaturas=10**np.arange(-1,1.1,0.1), tamano_m
     
     for n in np.arange(0,len(temperaturas)):
         ising.T = temperaturas[n]
-        entropias[n] = calculate_entropy_ising(ising, transiciones=trans, tamano_muestra=5000)
+        entropias[n] = calculate_entropy_ising(ising, transiciones=trans, tamano_muestra=tamano_muestra_)
         
     ising.T = temperatura_original
     return entropias

@@ -445,7 +445,6 @@ def construir_grafo(conexiones):
     for i in range(conexiones.shape[0]):
         for j in range(conexiones.shape[1]):            
             if (i != j) and (conexiones[i,j]):
-                print("Añadida conexion: "+ str(i) + ", " + str(j))
                 g.add_edge(i,j)
     
     return g
@@ -673,7 +672,7 @@ if __name__ == '__main__':
     #   Si barajero != None, se escogen las indicadas en barajeo
     _barajeo = None
     
-    tipo_compresion = 28
+    tipo_compresion = 7
     umbral_usado = 4
     tiempo_ = 1
     tr = True
@@ -692,6 +691,7 @@ if __name__ == '__main__':
             isings, fits = restore_ising(sys.argv[1])
             isings[0].T=1
     entropias_calc = entropy_metrics.entropia_temperatura(isings[0], trans=tr)
+    
     #Para sacar la aproximacion
     #mejor_punto, valor = mt.derivada_maxima_aproximada(np.arange(-1,1.1,0.1), entropias_calc)
     #plt.figure()

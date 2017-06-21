@@ -24,7 +24,7 @@ def calcMeanCov(muestra, booleans = True, tiempo_=5, size = 0):
     if booleans:
         T = muestra.shape[0]
         size = muestra.shape[1]
-        ##Calculamos la media y la covarianza de cada neurona
+        ##Calculamos la media y la correlacion de cada neurona
         sample = np.zeros(T)
         for i in range(T):
             sample[i] = (bool2int(muestra[i,:]))
