@@ -1,21 +1,21 @@
 # Wormbrain
-Wormbrain es un librería que ofrece herramientas para trabajar con datos de actividad neuronal.
+Wormbrain es un libreria que ofrece herramientas para trabajar con datos de actividad neuronal.
 
 Este repositorio es un fork del repositorio ya existente de Miguel Aguilera: https://github.com/MiguelAguilera/wormbrain
 
 
-## Características:
+## Caracteristicas:
 
-  - Discretización de la actividad neuronal.
+  - Discretizacion de la actividad neuronal.
   - Inferencia de modelos de Ising y funciones para comprobar su fiabilidad.
-  - Métricas relacionadas con el estudio de la entropía.
+  - Metricas relacionadas con el estudio de la entropia.
   - Reconstruccion aproximada de la red neuronal original.
   - Dibujo de grafos en plotly.
   - Herramientas para el estudio de la criticidad de la muestra/modelo.
-  - Herramientas para facilitar la visualización y carga/guardado de muestras y resultados.
+  - Herramientas para facilitar la visualizaciÃ³n y carga/guardado de muestras y resultados.
   - Clasificador para asociar actividad neuronal con comportamientos/estados determinados.
 
-## Instalación
+## Instalacion
 
 Wormbrain requiere de Python 3.X para funcionar.
 Wormbrain requiere de los siguientes paquetes para funcionar:
@@ -28,19 +28,19 @@ Wormbrain requiere de los siguientes paquetes para funcionar:
  - Numpy
  - Numexpr
 
-Además, se necesita del siguiente repositorio de Miguel Aguilera: https://github.com/MiguelAguilera/Python-Entropy-Tools
-En caso de utilizar el fichero setup.py para instalar Wormbrain, hay que introducir los ficheros contenidos en este repositorio en la carpeta raíz de Wormbrain.
+Ademas, se necesita del siguiente repositorio de Miguel Aguilera: https://github.com/MiguelAguilera/Python-Entropy-Tools
+En caso de utilizar el fichero setup.py para instalar Wormbrain, hay que introducir los ficheros contenidos en este repositorio en la carpeta raiz de Wormbrain.
 
 ## Estructura
 Los principales ficheros son:
 
-- analyze_model: contiene todas las funciones de análisis del modelo, ya sea para buscar el punto crítico, o posibles conexiones de la red neuronal original de partir de los datos. Si se ejecuta, carga un modelo de Ising ya guardado y calcula el punto crítico del sistema en comparación con la muestra con la que fue calculado.
-- kinetic_ising: contiene todas las funciones para crear y entrenar un modelo Ising cinético a partir de un conjunto de datos, así como generar muestras a partir de él.
-- entropy_metrics: contiene funciones para realizar medidas de entropía y otras relacionadas con la misma, como la capacidad calorifica del modelo.
+- analyze_model: contiene todas las funciones de anÃ¡lisis del modelo, ya sea para buscar el punto critico, o posibles conexiones de la red neuronal original de partir de los datos. Si se ejecuta, carga un modelo de Ising ya guardado y calcula el punto critico del sistema en comparacion con la muestra con la que fue calculado.
+- kinetic_ising: contiene todas las funciones para crear y entrenar un modelo Ising cinetico a partir de un conjunto de datos, asi como generar muestras a partir de el.
+- entropy_metrics: contiene funciones para realizar medidas de entropia y otras relacionadas con la misma, como la capacidad calorifica del modelo.
 - ising_recovery: contiene funciones para guardar y cargar de ficheros modelos, muestras y resultados.
-- math_utils: contiene funciones para aproximar datos reales bien a una funci�n sigmoidal, bien a una distribuci�n de Zipf, adem�s de para facilitar la visualizaci�n de datos. 
+- math_utils: contiene funciones para aproximar datos reales bien a una función sigmoidal, bien a una distribución de Zipf, además de para facilitar la visualización de datos. 
 - red_clasificador: contiene las funciones para crear y entrenar una red neuronal con Keras como clasificador.
-- worm: contiene funciones de QQL para trabajar con el set de datos de activación neuronal del gusano C.elegans.
+- worm: contiene funciones de QQL para trabajar con el set de datos de activacionn neuronal del gusano C.elegans.
 
 
 
