@@ -9,7 +9,6 @@ import analyze_model as am
 
 import numpy as np
 import matplotlib.pyplot as plt
-import ITtools as it
 import ising_recovery as ir
 
 
@@ -26,14 +25,14 @@ def cuenta_estado(activaciones):
     '''
     Cuenta el numero de veces que aparece cada estado en la muestra, y lo devuelve
     en forma de diccionario.
-    
+
     activaciones -- array a analizar. Cada muestra debe ser un entero
     '''
     cuenta_estados = {}
     for estado in activaciones:
         convertido = str(estado)
         if convertido in cuenta_estados:
-           cuenta_estados[convertido] = cuenta_estados[convertido] + 1                   
+           cuenta_estados[convertido] = cuenta_estados[convertido] + 1
         else:
            cuenta_estados[convertido] = 1
     return cuenta_estados
@@ -42,7 +41,7 @@ def cuenta_transiciones(activaciones):
     '''
     Cuenta el numero de veces que aparece cada estado en la muestra, y lo devuelve
     en forma de diccionario.
-    
+
     activaciones -- array a analizar. Cada muestra debe ser un entero
     '''
     cuenta_estados = {}
@@ -51,18 +50,18 @@ def cuenta_transiciones(activaciones):
         if not (anterior is None):
             convertido = str(estado) + str(anterior)
             if convertido in cuenta_estados:
-               cuenta_estados[convertido] = cuenta_estados[convertido] + 1                   
+               cuenta_estados[convertido] = cuenta_estados[convertido] + 1
             else:
                cuenta_estados[convertido] = 1
-               
+
         anterior = estado
-        
+
     return cuenta_estados
 
 def entropia(estados):
     '''
     Calcula la entropia de una lista de ocurrencias.
-    
+
     estados -- numero de ocurrencias de una serie de eventos.
                 NOTA: ocurrencias, no probabilidades.
     '''
@@ -70,17 +69,17 @@ def entropia(estados):
     normalizacion = 0
     for n in estados.keys():
         normalizacion = normalizacion + estados[n]
-        
+
     for n in estados.keys():
         suma = suma + (estados[n]/float(normalizacion)) * np.log2(estados[n]/float(normalizacion))
-        
+
     return -suma
 
 def entropia_transiciones(model, tam = 10000, glauber=False):
     '''
     Calcula la entropia de las transiciones que genera un modelo.
     (Solo tiene sentido con el ising cinetico)
-    
+
     model -- modelo cinetico
     muestra -- muestra a estudiar
     '''
@@ -89,7 +88,7 @@ def entropia_transiciones(model, tam = 10000, glauber=False):
     if not glauber:
         for i in range(tam):
             model.GlauberStep()
-            
+
             h= model.H() * (1/model.T)
             total += (h*np.tanh(h) - np.log(2*np.cosh(h)))
 
@@ -100,13 +99,13 @@ def entropia_transiciones(model, tam = 10000, glauber=False):
             muestra = model.generate_sample(3, state=s, booleans = True)
             s = muestra[2]
             total += np.sum(transmision_entropia(muestra))/muestra.shape[1]
-    
+
     return -(total)
 
 def cap_calorifica(model, tam = 5000):
     '''
     Calcula la capacidad calorifica de un sistema.
-    
+
     model -- modelo a analizar.
     tam -- tamanyo de la muestra con la que calcular el modelo.
     '''
@@ -117,11 +116,11 @@ def cap_calorifica(model, tam = 5000):
         h = model.H()
         B = 1/model.T
         total += h**2 * B**2 / np.cosh(h*B)**2 + B*(model.s*h - np.dot(model.s,h))*(B*h*np.tanh(B*h)-np.log(2*np.cosh(B*h)))
-        
+
     total /= tam
     return  np.mean(total)
-        
-        
+
+
 def calculate_entropy_ising(ising,tamano_muestra=None, transiciones = False):
     '''
     Genera una muestra aleatoria de un ising y calcula la entropia de la misma
@@ -140,7 +139,7 @@ def calculate_entropy_ising(ising,tamano_muestra=None, transiciones = False):
     else:
         muestra = ising.generate_sample(tamano_muestra)
         return entropia(cuenta_transiciones(muestra))
-        
+
 
 
 def entropia_temperatura(ising, temperaturas=10**np.arange(-1,1.1,0.1), tamano_muestra_=10000,trans=True):
@@ -150,18 +149,18 @@ def entropia_temperatura(ising, temperaturas=10**np.arange(-1,1.1,0.1), tamano_m
     '''
     entropias = np.zeros(len(temperaturas))
     temperatura_original = ising.T
-    
+
     for n in np.arange(0,len(temperaturas)):
         ising.T = temperaturas[n]
         entropias[n] = calculate_entropy_ising(ising, transiciones=trans, tamano_muestra=tamano_muestra_)
-        
+
     ising.T = temperatura_original
     return entropias
 
 def entropia_muestra(conjunto, transiciones, normalizar=False):
     '''
-    Devuelve la entropia de un conjunto, calculandola a partir de 
-    
+    Devuelve la entropia de un conjunto, calculandola a partir de
+
     Conjunto -- conjunto del que calcular la entropia
     transiciones -- indica si se quiere medir la entropia de los cambios de estado
     normalizar -- ajusta el valor entre 0 y 1 o no
@@ -170,10 +169,10 @@ def entropia_muestra(conjunto, transiciones, normalizar=False):
         result = entropia(cuenta_estado(conjunto))
     else:
         result = entropia(cuenta_transiciones(conjunto))
-        
+
     if normalizar:
         result /= max(result)
-    
+
     return result
 
 def entropia_completa(muestra):
@@ -185,7 +184,7 @@ def entropia_completa(muestra):
     e_individuales = 0
     for i in range(muestra.shape[1]):
         e_individuales += entropia(cuenta_estado(muestra[:,i]))
-        
+
     return e_muestra, e_individuales
 
 def correlaciones_capturadas(model, original):
@@ -196,39 +195,41 @@ def correlaciones_capturadas(model, original):
     muestra = model.generate_sample(booleans = True)
     (total_m, indv_m) = entropia_completa(original)
     (total_t, indv_t) = entropia_completa(muestra)
-    
+
     return (indv_t - total_t) / (indv_m - total_m)
 
 @jit
 def transmision_entropia(muestra, tiempo=1):
     '''
-    Calcula la transferencia de entropia para todas las combinaciones de 
+    Calcula la transferencia de entropia para todas las combinaciones de
     dimensiones posibles de la muestra a un tiempo t una de la otra.
-    
+
     muestra -- actividad neuronal discretizada a estudiar.
     tiempo -- distancia temporal a la que se quiere estudiar.
     '''
+    import ITtools as it
+
     dimensiones = muestra.shape[1]
     permutaciones = list(permutations(np.arange(0,dimensiones),2))
     resultados = np.zeros([dimensiones, dimensiones])-1
-    
+
     for permutacion in permutaciones:
         resultados[permutacion[0],permutacion[1]] = it.TransferEntropy(muestra[:,permutacion[0]]+0, muestra[:,permutacion[1]]+0, r = tiempo)
-        
+
     for i in np.arange(0,dimensiones):
         for j in np.arange(0,dimensiones):
             if i==j:
                 resultados[i,i] = 0
-            
-    
+
+
     return resultados
 
 def transmisiones_entropia(muestra, rango=np.arange(1,31), verboso = True, guardar = False):
     '''
-    Calcula la transferencia de entropia para todas las combinaciones de 
+    Calcula la transferencia de entropia para todas las combinaciones de
     dimensiones posibles de la muestra en un rango de tiempos.
     Devuelve ademas la suma de esta misma para cada t distinto.
-    
+
     muestras -- actividad neuronal a analizar.
     rango -- tiempos en los que analizar.
     verboso -- muestra por pantalla el T en calculo si True.
@@ -239,15 +240,15 @@ def transmisiones_entropia(muestra, rango=np.arange(1,31), verboso = True, guard
     for i in rango:
         if verboso:
             print("Con T = " + str(i))
-            
+
         resultados.append(transmision_entropia(muestra, i))
         sumas_entropia[i-1] = np.sum(resultados[i-1])
-        
+
     if guardar:
         for i in np.arange(len(rango)):
             ir.save_image(resultados[i], "T" + str(i+1))
             ir.save_results(resultados[i], "T" + str(i+1) + "_datos.dat")
-            
+
     return resultados, sumas_entropia
 
 ############################################
@@ -255,13 +256,13 @@ def transmisiones_entropia(muestra, rango=np.arange(1,31), verboso = True, guard
 ############################################
 def deprecation(message):
     warnings.warn(message, DeprecationWarning, stacklevel=1)
-    
+
 def entropiaKneuronas(gusano, k, normalizar=False):
     '''
     Devuelve la media de entropia de cada k combinacion de neuronas del gusano.
     '''
     deprecation("Usa la formula estandar!")
-    
+
     cuenta_estados = {}
     (neural_activation_original,behaviour)=worm.get_neural_activation(gusano)
     size = neural_activation_original.shape[1] #Numero de dimensiones
@@ -276,15 +277,15 @@ def entropiaKneuronas(gusano, k, normalizar=False):
         for estado in range(np.size(activaciones,0)):
             convertido = bool2int(activaciones[estado,:])
             if convertido in cuenta_estados:
-                cuenta_estados[convertido] = cuenta_estados[convertido] + 1                   
+                cuenta_estados[convertido] = cuenta_estados[convertido] + 1
             else:
                 cuenta_estados[convertido] = 1
-       
+
         registro_entropias[indice] = entropia(cuenta_estados)
         indice = indice + 1
         cuenta_estados.clear()
-    
-   
+
+
     plt.plot(rango,registro_entropias)
     print()
     if normalizar:
@@ -295,7 +296,7 @@ def entropiaKneuronas(gusano, k, normalizar=False):
 def kMejores():
     '''
     Realiza el estudio de los mejores umbrales para cada gusano, usando las
-    k neuronas mas correladas con su comportamiento, donde ese k es el mayor 
+    k neuronas mas correladas con su comportamiento, donde ese k es el mayor
     k tal que 2^k<= numero muestras
     '''
     deprecation("Usa la formula estandar!")
@@ -307,13 +308,13 @@ def kMejores():
         limit_neuronas = int(np.log2(T))
         cuenta_estados = {}
         neural_activation = SelectKBest(f_classif, k=limit_neuronas).fit_transform(neural_activation, behaviour)
-                
-        for n in np.arange(0,2,0.1).tolist() + [2,3,4,5]: 
+
+        for n in np.arange(0,2,0.1).tolist() + [2,3,4,5]:
             activaciones = am.umbralizar(neural_activation, n)
             for estado in range(np.size(activaciones,1)):
                 convertido = bool2int(activaciones[estado,:])
                 if convertido in cuenta_estados:
-                    cuenta_estados[convertido] = cuenta_estados[convertido] + 1                   
+                    cuenta_estados[convertido] = cuenta_estados[convertido] + 1
                 else:
                     cuenta_estados[convertido] = 1
             if (n*10 < len(registro_entropias)):
@@ -321,13 +322,13 @@ def kMejores():
             else:
                 print("Numero estados: ", len(cuenta_estados))
                 print("Con umbral ", n, " :",entropia(cuenta_estados))
-                
+
             cuenta_estados.clear()
-        plt.figure() 
+        plt.figure()
         plt.title("Entropia segun umbral. Gusano %s"%(gusano+1))
         plt.plot(np.divide(range(np.size(registro_entropias)),10.0),registro_entropias)
         print()
-        
+
 
 ########################################################
-    
+
