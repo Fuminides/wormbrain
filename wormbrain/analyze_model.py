@@ -15,14 +15,14 @@ import networkx as nx
 from . import math_tools as mt
 
 
-from kinetic_ising import ising, bool2int
+from .kinetic_ising import ising, bool2int
 from sklearn.decomposition import PCA
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.feature_selection import SelectFromModel
 #from red_clasificador import entrenar_clasificador, process_labels
 from .ising_recovery import save_isings, restore_ising, mandar_aviso_correo
 from random import random
-from plotly.graph_objs import Figure, Scatter, Line, Marker, Layout, Data, XAxis, YAxis
+#from plotly.graph_objs import Figure, Scatter, Line, Marker, Layout, Data, XAxis, YAxis
 from timeit import default_timer as timer
 
 #######################################################
