@@ -3,7 +3,7 @@ import csv
 
 import numpy as np
 import matplotlib.pyplot as plt
-import analyze_model as am
+from . import analyze_model as am
 
 from scipy.optimize import leastsq
 
