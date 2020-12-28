@@ -2,7 +2,7 @@
 """
 @author: Javier Fumanal Idocin
 """
-import worm
+from . import worm
 import warnings
 
 from . import analyze_model as am
