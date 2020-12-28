@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 
 from itertools import combinations
 from scipy.special import erfinv
-from numba import jit
 import numexpr as ne
 
     
@@ -235,7 +234,7 @@ class ising:
        self.convergencias_malas = 0
        return False
         
-    #@jit
+
     def inverse(self,m1,D1, error,sample, maximum_error = True, u = 0.01, verboso = True, max_iteration = np.inf, parallel = False):
         '''
         Entrena el sistema de Ising utilizando descenso de gradiente.

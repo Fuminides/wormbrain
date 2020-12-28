@@ -5,17 +5,17 @@
 import worm
 import warnings
 
-import analyze_model as am
+from . import analyze_model as am
 
 import numpy as np
 import matplotlib.pyplot as plt
-import ising_recovery as ir
+from . import ising_recovery as ir
 
 
-from kinetic_ising import bool2int
+from .kinetic_ising import bool2int
 from itertools import combinations
 from sklearn.feature_selection import SelectKBest, f_classif
-from numba import jit
+#from numba import jit
 from itertools import permutations
 
 ######################################
@@ -198,7 +198,6 @@ def correlaciones_capturadas(model, original):
 
     return (indv_t - total_t) / (indv_m - total_m)
 
-@jit
 def transmision_entropia(muestra, tiempo=1):
     '''
     Calcula la transferencia de entropia para todas las combinaciones de

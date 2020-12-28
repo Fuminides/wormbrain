@@ -2,13 +2,13 @@
 """
 @author: Javier Fumanal Idocin
 """
-import entropy_metrics
+from . import entropy_metrics
 
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-from kinetic_ising import bool2int, bitfield
+from .kinetic_ising import bool2int, bitfield
 from scipy.optimize import curve_fit, fmin
 from scipy import stats
 from functools import partial

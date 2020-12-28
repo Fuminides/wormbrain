@@ -1,5 +1,5 @@
-import analyze_model
-import entropy_metrics
-import ising_recovery
-import red_clasificador
-import math_tools
+from . import analyze_model
+from . import entropy_metrics
+from . import ising_recovery
+#from . import red_clasificador
+from . import math_tools
